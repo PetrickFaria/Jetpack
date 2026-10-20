@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "PRP",
+    "PRP",
+    "RTR"
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:oak_planks"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "T": {
+      "item": "minecraft:oak_log"
+    }
+  },
+  "result": {
+    "item": "jetpack:jetpack_wood",
+    "count": 1
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "DRD",
+    "DED",
+    "RBR"
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "E": {
+      "item": "jetpack:jetpack_emerald"
+    },
+    "B": {
+      "item": "minecraft:diamond_block"
+    }
+  },
+  "result": {
+    "item": "jetpack:jetpack_diamond",
+    "count": 1
+  }
+}

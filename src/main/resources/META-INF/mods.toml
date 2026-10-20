@@ -1,0 +1,21 @@
+modLoader="javafml"
+loaderVersion="[43,)"
+license="All Rights Reserved"
+[[mods]]
+modId="jetpack"
+version="${file.jarVersion}"
+displayName="Jetpack"
+authors="PetrickFaria"
+description='''Six upgradeable redstone-powered jetpacks for Minecraft 1.19.2.'''
+[[dependencies.jetpack]]
+modId="forge"
+mandatory=true
+versionRange="[43.5.0,44)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.jetpack]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.19.2,1.20)"
+ordering="NONE"
+side="BOTH"
