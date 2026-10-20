@@ -24,8 +24,16 @@ minecraft {
     }
 }
 
-repositories { maven { url = 'https://maven.minecraftforge.net/' } }
-dependencies { minecraft 'net.minecraftforge:forge:1.19.2-43.5.0' }
+repositories {
+    maven { url = 'https://maven.minecraftforge.net/' }
+    mavenCentral()
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.19.2-43.5.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+}
+
+test { useJUnitPlatform() }
 
 jar {
     manifest {

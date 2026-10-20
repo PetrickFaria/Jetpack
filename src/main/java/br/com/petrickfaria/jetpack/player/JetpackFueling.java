@@ -42,6 +42,7 @@ public final class JetpackFueling {
     }
 
     public static void setFuel(Player player, UUID id, ItemStack fuel) {
+        if (!fuel.isEmpty() && !isFuel(fuel)) return;
         ItemStack host = findHost(player, id);
         if (host.isEmpty()) return;
         CompoundTag tag = host.getOrCreateTag();
@@ -123,7 +124,6 @@ public final class JetpackFueling {
             else tag.put(FUEL_TAG, fuel.save(new CompoundTag()));
             left = total = burnTicks;
             budget = Math.min(JetpackItem.CAPACITY - JetpackItem.energy(host), energyForBurnTicks(burnTicks));
-            tag.putDouble(BURN_FRACTION, 0.0D);
         }
 
         double fraction = tag.getDouble(BURN_FRACTION) + budget / Math.max(1, total);

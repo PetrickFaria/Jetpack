@@ -63,8 +63,7 @@ public final class JetpackClientUi {
         if (!(pack.getItem() instanceof JetpackItem)) return;
         int energy = JetpackItem.energy(pack);
         float fraction = Math.max(0.0F, Math.min(1.0F, energy / (float) JetpackItem.CAPACITY));
-        int right = event.getWindow().getGuiScaledWidth() - 10;
-        int x = right - 96;
+        int x = event.getWindow().getGuiScaledWidth() - 126;
         int y = 10;
         var pose = event.getPoseStack();
         mc.font.draw(pose, "Jetpack:", x, y, 0xFF000000);
