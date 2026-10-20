@@ -59,6 +59,13 @@ tasks.register('verifyModJarAssets') {
         def expectedPngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as byte[]
         def archive = new java.util.zip.ZipFile(jarFile)
         try {
+            def packMetaEntry = archive.getEntry('pack.mcmeta')
+            if (packMetaEntry == null) throw new GradleException('Missing pack.mcmeta at the JAR root')
+            def packMeta = new groovy.json.JsonSlurper().parse(archive.getInputStream(packMetaEntry))
+            if (packMeta.pack?.pack_format != 9) {
+                throw new GradleException('Invalid pack.mcmeta: Minecraft 1.19.2 resource pack_format must be 9')
+            }
+
             tiers.each { tier ->
                 def stem = "jetpack_${tier}"
                 def modelPath = "assets/jetpack/models/item/${stem}.json"
@@ -84,7 +91,7 @@ tasks.register('verifyModJarAssets') {
                     input.close()
                 }
             }
-            logger.lifecycle("Verified six jetpack item models and PNG textures in ${jarFile.name}")
+            logger.lifecycle("Verified pack.mcmeta, six jetpack item models, and six PNG textures in ${jarFile.name}")
         } finally {
             archive.close()
         }
