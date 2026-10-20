@@ -8,6 +8,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.level.Level;
 import br.com.petrickfaria.jetpack.player.JetpackEquipment;
+import br.com.petrickfaria.jetpack.menu.JetpackFuelMenu;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.INBTSerializable;
@@ -16,11 +17,17 @@ import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraft.core.Direction;
 import javax.annotation.Nullable;
+import java.util.UUID;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.world.SimpleMenuProvider;
 
 /** Five minutes at one FE per tick; one coal (1600 burn ticks) supplies exactly 10%. */
 public class JetpackItem extends Item {
     public static final int CAPACITY = 6000;
     public static final int COAL_ENERGY = CAPACITY / 10;
+    public static final String INSTANCE_ID = "JetpackInstance";
     private final int maximumHeight;
 
     public JetpackItem(int maximumHeight, Properties properties) {
@@ -39,7 +46,19 @@ public class JetpackItem extends Item {
             player.setItemInHand(hand, previous);
             return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), false);
         }
-        return InteractionResultHolder.pass(held);
+        if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
+            UUID id = getOrCreateInstanceId(held);
+            NetworkHooks.openScreen(serverPlayer, new SimpleMenuProvider(
+                    (containerId, inventory, user) -> new JetpackFuelMenu(containerId, inventory, id),
+                    Component.literal("Abastecer Jetpack")), buf -> { buf.writeUUID(id); buf.writeItem(held); });
+        }
+        return InteractionResultHolder.sidedSuccess(held, level.isClientSide);
+    }
+
+    public static UUID getOrCreateInstanceId(ItemStack stack) {
+        CompoundTag tag = stack.getOrCreateTag();
+        if (!tag.hasUUID(INSTANCE_ID)) tag.putUUID(INSTANCE_ID, UUID.randomUUID());
+        return tag.getUUID(INSTANCE_ID);
     }
 
     @Override
