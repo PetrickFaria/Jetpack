@@ -1,6 +1,6 @@
 # Implementation status
 
-## In the initial source commit
+## Implemented in source (build passed in Actions run 39378374645)
 
 - Forge 43.5.0 project targeting Minecraft 1.19.2 and Java 17
 - Six item registrations and crafting recipes
@@ -20,6 +20,6 @@
 - Back-mounted 3D player models and six material textures
 - Client/server play tests, dedicated-server test, and world save/reload test
 
-The flight implementation has not yet passed the next GitHub Actions run or an in-game test. Its code is present, but the status above does not imply runtime approval.
+The equipment and flight code passed GitHub Actions compilation and JAR packaging. No Minecraft client, multiplayer session, dedicated server, or save/reload test has been run, so gameplay behavior remains unverified.
 
 The six recipes follow the ingredient positions in the supplied specification. The Netherite recipe uses netherite ingots in the top/side positions and the lower-center position, as requested.
