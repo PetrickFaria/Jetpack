@@ -67,7 +67,7 @@ public final class JetpackFlight {
         state.putBoolean("down", false);
         player.setNoGravity(state.getBoolean("previousNoGravity"));
         var remaining = JetpackEquipment.get(player);
-        state.putBoolean("braking", userRequested && !player.onGround() && JetpackItem.energy(remaining) > 0);
+        state.putBoolean("braking", userRequested && !player.isOnGround() && JetpackItem.energy(remaining) > 0);
     }
 
     @SubscribeEvent
@@ -79,7 +79,7 @@ public final class JetpackFlight {
             stop(player, state, false);
             return;
         }
-        if (player.onGround() && !state.getBoolean("active")) {
+        if (player.isOnGround() && !state.getBoolean("active")) {
             state.putDouble("lastGroundY", player.getY());
             state.putBoolean("braking", false);
         }
@@ -113,7 +113,7 @@ public final class JetpackFlight {
     }
 
     private static void tickBrake(Player player, CompoundTag state) {
-        if (player.onGround()) { state.putBoolean("braking", false); return; }
+        if (player.isOnGround()) { state.putBoolean("braking", false); return; }
         Vec3 motion = player.getDeltaMovement();
         if (motion.y >= 0.0D) return;
         double surface = findSurface(player, 4);
