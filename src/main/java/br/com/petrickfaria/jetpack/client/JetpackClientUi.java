@@ -24,7 +24,7 @@ public final class JetpackClientUi {
         Minecraft mc = Minecraft.getInstance();
         int left = (mc.getWindow().getGuiScaledWidth() - 176) / 2;
         int top = (mc.getWindow().getGuiScaledHeight() - 166) / 2;
-        int x = left + 26;
+        int x = left - 10;
         int y = top + 26;
         var pose = event.getPoseStack();
         // A vanilla-like recessed slot beside the chestplate slot.
@@ -44,7 +44,7 @@ public final class JetpackClientUi {
         Minecraft mc = Minecraft.getInstance();
         int left = (mc.getWindow().getGuiScaledWidth() - 176) / 2;
         int top = (mc.getWindow().getGuiScaledHeight() - 166) / 2;
-        int x = left + 26;
+        int x = left - 10;
         int y = top + 26;
         double mouseX = event.getMouseX();
         double mouseY = event.getMouseY();

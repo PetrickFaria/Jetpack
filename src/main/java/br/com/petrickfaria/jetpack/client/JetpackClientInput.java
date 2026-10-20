@@ -14,6 +14,8 @@ public final class JetpackClientInput {
     private static boolean previousJump;
     private static boolean lastUp;
     private static boolean lastDown;
+    private static float lastStrafe;
+    private static float lastForward;
     private static long previousJumpAt;
 
     @SubscribeEvent
@@ -21,32 +23,36 @@ public final class JetpackClientInput {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
-            previousJump = false; lastUp = false; lastDown = false;
+            previousJump = false; lastUp = false; lastDown = false; lastStrafe = 0.0F; lastForward = 0.0F;
             return;
         }
         if (mc.screen != null) {
-            if (lastUp || lastDown)
-                JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.FlightInput(false, false, false));
-            previousJump = false; lastUp = false; lastDown = false;
+            if (lastUp || lastDown || lastStrafe != 0.0F || lastForward != 0.0F)
+                JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.FlightInput(false, false, false, 0.0F, 0.0F));
+            previousJump = false; lastUp = false; lastDown = false; lastStrafe = 0.0F; lastForward = 0.0F;
             return;
         }
         boolean jump = mc.options.keyJump.isDown();
         boolean up = jump;
         boolean down = mc.options.keyShift.isDown();
+        float strafe = (mc.options.keyRight.isDown() ? 1.0F : 0.0F)
+                - (mc.options.keyLeft.isDown() ? 1.0F : 0.0F);
+        float forward = (mc.options.keyUp.isDown() ? 1.0F : 0.0F)
+                - (mc.options.keyDown.isDown() ? 1.0F : 0.0F);
         boolean toggle = false;
         if (jump && !previousJump) {
             long now = System.currentTimeMillis();
             if (now - previousJumpAt <= 300L) { toggle = true; previousJumpAt = 0L; }
             else previousJumpAt = now;
         }
-        if (toggle || up != lastUp || down != lastDown)
-            JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.FlightInput(toggle, up, down));
-        previousJump = jump; lastUp = up; lastDown = down;
+        if (toggle || up != lastUp || down != lastDown || strafe != lastStrafe || forward != lastForward)
+            JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.FlightInput(toggle, up, down, strafe, forward));
+        previousJump = jump; lastUp = up; lastDown = down; lastStrafe = strafe; lastForward = forward;
     }
 
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
-        previousJump = false; lastUp = false; lastDown = false; previousJumpAt = 0L;
+        previousJump = false; lastUp = false; lastDown = false; lastStrafe = 0.0F; lastForward = 0.0F; previousJumpAt = 0L;
     }
 
     private JetpackClientInput() {}

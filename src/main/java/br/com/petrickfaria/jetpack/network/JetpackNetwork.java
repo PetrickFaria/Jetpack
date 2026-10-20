@@ -50,20 +50,23 @@ public final class JetpackNetwork {
         private final boolean toggle;
         private final boolean up;
         private final boolean down;
-        public FlightInput(boolean toggle, boolean up, boolean down) {
-            this.toggle = toggle; this.up = up; this.down = down;
+        private final float strafe;
+        private final float forward;
+        public FlightInput(boolean toggle, boolean up, boolean down, float strafe, float forward) {
+            this.toggle = toggle; this.up = up; this.down = down; this.strafe = strafe; this.forward = forward;
         }
         private static void encode(FlightInput msg, FriendlyByteBuf buf) {
             buf.writeBoolean(msg.toggle); buf.writeBoolean(msg.up); buf.writeBoolean(msg.down);
+            buf.writeFloat(msg.strafe); buf.writeFloat(msg.forward);
         }
         private static FlightInput decode(FriendlyByteBuf buf) {
-            return new FlightInput(buf.readBoolean(), buf.readBoolean(), buf.readBoolean());
+            return new FlightInput(buf.readBoolean(), buf.readBoolean(), buf.readBoolean(), buf.readFloat(), buf.readFloat());
         }
         private static void handle(FlightInput msg, Supplier<NetworkEvent.Context> supplier) {
             NetworkEvent.Context context = supplier.get();
             context.enqueueWork(() -> {
                 if (context.getSender() != null)
-                    JetpackFlight.handleInput(context.getSender(), msg.toggle, msg.up, msg.down);
+                    JetpackFlight.handleInput(context.getSender(), msg.toggle, msg.up, msg.down, msg.strafe, msg.forward);
             });
             context.setPacketHandled(true);
         }

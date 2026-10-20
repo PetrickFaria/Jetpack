@@ -25,9 +25,17 @@ public final class JetpackFueling {
     private static final String BURN_VALUE = "JetpackBurnEnergy";
     private static final String BURN_FRACTION = "JetpackBurnFraction";
     private static final double FE_PER_BURN_TICK = JetpackItem.COAL_ENERGY / 1600.0D;
+    private static final int BURN_TICKS_PER_GAME_TICK = 80;
 
     public static double energyForBurnTicks(int burnTicks) {
         return Math.max(0, burnTicks) * FE_PER_BURN_TICK;
+    }
+
+    /** ER delivered during one game tick when fuel burn is accelerated to a 10-second full charge. */
+    public static double energyForGameTick(double fuelEnergy, int totalBurnTicks, int burnTicksLeft) {
+        if (fuelEnergy <= 0.0D || totalBurnTicks <= 0 || burnTicksLeft <= 0) return 0.0D;
+        int consumedBurnTicks = Math.min(BURN_TICKS_PER_GAME_TICK, burnTicksLeft);
+        return fuelEnergy * consumedBurnTicks / totalBurnTicks;
     }
 
     public static boolean isFuel(ItemStack stack) {
@@ -126,13 +134,15 @@ public final class JetpackFueling {
             budget = Math.min(JetpackItem.CAPACITY - JetpackItem.energy(host), energyForBurnTicks(burnTicks));
         }
 
-        double fraction = tag.getDouble(BURN_FRACTION) + budget / Math.max(1, total);
+        int consumedBurnTicks = Math.min(BURN_TICKS_PER_GAME_TICK, left);
+        double fraction = tag.getDouble(BURN_FRACTION)
+                + energyForGameTick(budget, total, left);
         int whole = (int) fraction;
         if (whole > 0) {
             int received = JetpackItem.receive(host, whole, false);
             fraction -= received;
         }
-        left--;
+        left -= consumedBurnTicks;
         tag.putInt(BURN_LEFT, left);
         tag.putInt(BURN_TOTAL, total);
         tag.putDouble(BURN_VALUE, budget);

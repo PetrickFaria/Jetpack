@@ -17,17 +17,20 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = "jetpack")
 public final class JetpackFlight {
     private static final String FLIGHT_KEY = "jetpack_flight";
-    private static final double CLIMB_SPEED = 0.38D;
-    private static final double DESCENT_SPEED = 0.38D;
+    // Vanilla creative flight accelerates at 0.05 blocks/tick and applies 0.91 air drag.
+    private static final double CREATIVE_FLY_ACCELERATION = 0.05D;
+    private static final double CREATIVE_MAX_SPEED = CREATIVE_FLY_ACCELERATION / (1.0D - 0.91D);
     private static final double BRAKE_DISTANCE = 3.0D;
     private static final double BRAKE_FALL_SPEED = 0.16D;
 
-    public static void handleInput(ServerPlayer player, boolean toggle, boolean up, boolean down) {
+    public static void handleInput(ServerPlayer player, boolean toggle, boolean up, boolean down, float strafe, float forward) {
         CompoundTag state = state(player);
         boolean jumpEdge = up && !state.getBoolean("jumpPressed");
         state.putBoolean("jumpPressed", up);
         state.putBoolean("up", up);
         state.putBoolean("down", down);
+        state.putFloat("strafe", Mth.clamp(strafe, -1.0F, 1.0F));
+        state.putFloat("forward", Mth.clamp(forward, -1.0F, 1.0F));
         boolean doubleTap = false;
         if (jumpEdge) {
             long now = System.currentTimeMillis();
@@ -95,11 +98,17 @@ public final class JetpackFlight {
         }
 
         Vec3 motion = player.getDeltaMovement();
-        double y = motion.y;
+        double lift = state.getBoolean("up") == state.getBoolean("down") ? 0.0D
+                : state.getBoolean("up") ? 1.0D : -1.0D;
+        Vec3 startingMotion = lift == 0.0D ? new Vec3(motion.x, 0.0D, motion.z) : motion;
+        Vec3 velocity = creativeFlightVelocity(startingMotion, state.getFloat("strafe"), state.getFloat("forward"),
+                lift, player.getYRot());
         double ceiling = state.getDouble("baseY") + item.maximumHeight();
-        if (state.getBoolean("up")) y = player.getY() >= ceiling ? 0.0D : Math.min(CLIMB_SPEED, ceiling - player.getY());
-        else if (state.getBoolean("down")) y = -DESCENT_SPEED;
-        else y = 0.0D;
+        if (player.getY() >= ceiling && velocity.y > 0.0D) velocity = new Vec3(velocity.x, 0.0D, velocity.z);
+        else if (velocity.y > 0.0D && player.getY() + velocity.y > ceiling)
+            velocity = new Vec3(velocity.x, ceiling - player.getY(), velocity.z);
+        // Sprint does not increase jetpack speed; vanilla state is otherwise untouched.
+        player.setSprinting(false);
 
         if (JetpackItem.consume(pack, 1, false) != 1) {
             JetpackEquipment.save(player, pack);
@@ -107,7 +116,7 @@ public final class JetpackFlight {
             return;
         }
         JetpackEquipment.save(player, pack);
-        player.setDeltaMovement(motion.x, y, motion.z);
+        player.setDeltaMovement(velocity);
         player.fallDistance = 0;
         player.hurtMarked = true;
     }
@@ -129,6 +138,21 @@ public final class JetpackFlight {
         player.setDeltaMovement(motion.x, Math.max(motion.y, -BRAKE_FALL_SPEED), motion.z);
         player.fallDistance = 0;
         player.hurtMarked = true;
+    }
+
+    static Vec3 creativeFlightVelocity(Vec3 current, float strafe, float forward, double lift, float yawDegrees) {
+        double x = Mth.clamp(strafe, -1.0F, 1.0F);
+        double z = Mth.clamp(forward, -1.0F, 1.0F);
+        double y = Mth.clamp(lift, -1.0D, 1.0D);
+        double inputLength = Math.sqrt(x * x + y * y + z * z);
+        if (inputLength > 1.0D) { x /= inputLength; y /= inputLength; z /= inputLength; }
+        double yaw = yawDegrees * (Math.PI / 180.0D);
+        double worldX = x * Math.cos(yaw) - z * Math.sin(yaw);
+        double worldZ = z * Math.cos(yaw) + x * Math.sin(yaw);
+        Vec3 next = current.add(worldX * CREATIVE_FLY_ACCELERATION,
+                y * CREATIVE_FLY_ACCELERATION, worldZ * CREATIVE_FLY_ACCELERATION);
+        double length = next.length();
+        return length > CREATIVE_MAX_SPEED ? next.scale(CREATIVE_MAX_SPEED / length) : next;
     }
 
     private static double findSurface(Player player, int depth) {
