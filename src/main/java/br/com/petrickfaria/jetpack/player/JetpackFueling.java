@@ -24,7 +24,7 @@ public final class JetpackFueling {
     private static final String BURN_TOTAL = "JetpackBurnTotal";
     private static final String BURN_VALUE = "JetpackBurnEnergy";
     private static final String BURN_FRACTION = "JetpackBurnFraction";
-    private static final double FE_PER_BURN_TICK = JetpackItem.CAPACITY / 1600.0D;
+    private static final double FE_PER_BURN_TICK = JetpackItem.COAL_ENERGY / 1600.0D;
 
     public static double energyForBurnTicks(int burnTicks) {
         return Math.max(0, burnTicks) * FE_PER_BURN_TICK;
