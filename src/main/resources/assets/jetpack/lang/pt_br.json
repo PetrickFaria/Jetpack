@@ -4,5 +4,6 @@
   "item.jetpack.jetpack_gold": "Jetpack de Ouro",
   "item.jetpack.jetpack_emerald": "Jetpack de Esmeralda",
   "item.jetpack.jetpack_diamond": "Jetpack de Diamante",
-  "item.jetpack.jetpack_netherite": "Jetpack de Netherita"
+  "item.jetpack.jetpack_netherite": "Jetpack de Netherita",
+  "item_group.jetpack.jetpack": "Jetpack"
 }

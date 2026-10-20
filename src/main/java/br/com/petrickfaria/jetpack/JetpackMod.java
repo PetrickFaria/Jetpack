@@ -1,6 +1,7 @@
 package br.com.petrickfaria.jetpack;
 
 import br.com.petrickfaria.jetpack.registry.ModItems;
+import br.com.petrickfaria.jetpack.registry.ModCreativeTabs;
 import br.com.petrickfaria.jetpack.network.JetpackNetwork;
 import br.com.petrickfaria.jetpack.registry.ModMenus;
 import net.minecraftforge.fml.common.Mod;
@@ -14,6 +15,7 @@ public final class JetpackMod {
     public JetpackMod() {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ModItems.ITEMS.register(bus);
+        ModCreativeTabs.register(bus);
         ModMenus.MENUS.register(bus);
         JetpackNetwork.register();
     }
