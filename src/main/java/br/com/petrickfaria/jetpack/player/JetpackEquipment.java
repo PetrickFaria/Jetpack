@@ -19,7 +19,11 @@ public final class JetpackEquipment {
     public static void set(Player player, ItemStack stack) {
         CompoundTag data = player.getPersistentData();
         if (stack.isEmpty() || !(stack.getItem() instanceof JetpackItem)) data.remove(EQUIPMENT_KEY);
-        else data.put(EQUIPMENT_KEY, stack.copyWithCount(1).save(new CompoundTag()));
+        else {
+            ItemStack one = stack.copy();
+            one.setCount(1);
+            data.put(EQUIPMENT_KEY, one.save(new CompoundTag()));
+        }
     }
 
     public static void save(Player player, ItemStack stack) {

@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
@@ -66,7 +67,7 @@ public final class JetpackFlight {
         state.putBoolean("down", false);
         player.setNoGravity(state.getBoolean("previousNoGravity"));
         var remaining = JetpackEquipment.get(player);
-        state.putBoolean("braking", userRequested && !player.onGround && JetpackItem.energy(remaining) > 0);
+        state.putBoolean("braking", userRequested && !player.onGround() && JetpackItem.energy(remaining) > 0);
     }
 
     @SubscribeEvent
@@ -78,7 +79,7 @@ public final class JetpackFlight {
             stop(player, state, false);
             return;
         }
-        if (player.onGround && !state.getBoolean("active")) {
+        if (player.onGround() && !state.getBoolean("active")) {
             state.putDouble("lastGroundY", player.getY());
             state.putBoolean("braking", false);
         }
@@ -112,7 +113,7 @@ public final class JetpackFlight {
     }
 
     private static void tickBrake(Player player, CompoundTag state) {
-        if (player.onGround) { state.putBoolean("braking", false); return; }
+        if (player.onGround()) { state.putBoolean("braking", false); return; }
         Vec3 motion = player.getDeltaMovement();
         if (motion.y >= 0.0D) return;
         double surface = findSurface(player, 4);
@@ -131,8 +132,8 @@ public final class JetpackFlight {
     }
 
     private static double findSurface(Player player, int depth) {
-        int x = net.minecraft.core.BlockPos.containing(player.getX(), player.getY(), player.getZ()).getX();
-        int z = net.minecraft.core.BlockPos.containing(player.getX(), player.getY(), player.getZ()).getZ();
+        int x = Mth.floor(player.getX());
+        int z = Mth.floor(player.getZ());
         int fromY = Math.min(player.blockPosition().getY() - 1, player.level.getMaxBuildHeight() - 1);
         int minY = Math.max(player.level.getMinBuildHeight(), fromY - depth);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, fromY, z);
