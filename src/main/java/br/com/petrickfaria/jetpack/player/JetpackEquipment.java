@@ -4,6 +4,8 @@ import br.com.petrickfaria.jetpack.item.JetpackItem;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerPlayer;
+import br.com.petrickfaria.jetpack.network.JetpackNetwork;
 
 /** Persistent accessory storage independent of the vanilla chest armor slot. */
 public final class JetpackEquipment {
@@ -17,6 +19,11 @@ public final class JetpackEquipment {
     }
 
     public static void set(Player player, ItemStack stack) {
+        store(player, stack);
+        if (player instanceof ServerPlayer serverPlayer) JetpackNetwork.syncEquipment(serverPlayer);
+    }
+
+    private static void store(Player player, ItemStack stack) {
         CompoundTag data = player.getPersistentData();
         if (stack.isEmpty() || !(stack.getItem() instanceof JetpackItem)) data.remove(EQUIPMENT_KEY);
         else {
@@ -27,7 +34,11 @@ public final class JetpackEquipment {
     }
 
     public static void save(Player player, ItemStack stack) {
-        if (stack.getItem() instanceof JetpackItem) set(player, stack);
+        if (stack.getItem() instanceof JetpackItem) {
+            store(player, stack);
+            if (player instanceof ServerPlayer serverPlayer && serverPlayer.tickCount % 4 == 0)
+                JetpackNetwork.syncEquipment(serverPlayer);
+        }
     }
 
     private JetpackEquipment() {}
