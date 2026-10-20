@@ -59,6 +59,7 @@ public final class JetpackFlight {
         state.putBoolean("active", true);
         state.putBoolean("braking", false);
         state.putBoolean("previousNoGravity", player.isNoGravity());
+        state.putBoolean("previousSprinting", player.isSprinting());
         player.setNoGravity(true);
         player.fallDistance = 0;
     }
@@ -69,6 +70,7 @@ public final class JetpackFlight {
         state.putBoolean("up", false);
         state.putBoolean("down", false);
         player.setNoGravity(state.getBoolean("previousNoGravity"));
+        player.setSprinting(state.getBoolean("previousSprinting"));
         var remaining = JetpackEquipment.get(player);
         state.putBoolean("braking", userRequested && !player.isOnGround() && JetpackItem.energy(remaining) > 0);
     }
