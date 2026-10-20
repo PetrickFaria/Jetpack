@@ -17,7 +17,8 @@ public final class ModItems {
     public static final RegistryObject<JetpackItem> NETHERITE = register("netherite", 50);
 
     private static RegistryObject<JetpackItem> register(String name, int maxHeight) {
-        return ITEMS.register("jetpack_" + name, () -> new JetpackItem(maxHeight, new Item.Properties().stacksTo(1)));
+        return ITEMS.register("jetpack_" + name, () -> new JetpackItem(maxHeight,
+                new Item.Properties().stacksTo(1).tab(ModCreativeTabs.JETPACK)));
     }
     private ModItems() {}
 }
