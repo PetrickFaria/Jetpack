@@ -66,13 +66,22 @@ public final class JetpackClientUi {
         int x = event.getWindow().getGuiScaledWidth() - 126;
         int y = 10;
         var pose = event.getPoseStack();
-        mc.font.draw(pose, "Jetpack:", x, y, 0xFF000000);
+        drawOutlinedText(mc, pose, "Jetpack:", x, y);
         int barY = y + 12;
         GuiComponent.fill(pose, x, barY, x + 96, barY + 10, 0xFF202020);
         GuiComponent.fill(pose, x + 1, barY + 1, x + 95, barY + 9, 0xFF7A1010);
         int fill = Math.round(92 * fraction);
         if (fill > 0) GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 8, 0xFFE53935);
-        mc.font.draw(pose, Math.round(fraction * 100) + "%", x + 101, barY + 1, 0xFF000000);
+        drawOutlinedText(mc, pose, Math.round(fraction * 100) + "%", x + 101, barY + 1);
+    }
+
+    private static void drawOutlinedText(Minecraft mc, com.mojang.blaze3d.vertex.PoseStack pose,
+                                         String text, int x, int y) {
+        mc.font.draw(pose, text, x - 1, y, 0xFFFFFFFF);
+        mc.font.draw(pose, text, x + 1, y, 0xFFFFFFFF);
+        mc.font.draw(pose, text, x, y - 1, 0xFFFFFFFF);
+        mc.font.draw(pose, text, x, y + 1, 0xFFFFFFFF);
+        mc.font.draw(pose, text, x, y, 0xFF000000);
     }
 
     @SubscribeEvent
