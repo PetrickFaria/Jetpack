@@ -1,9 +1,12 @@
 package br.com.petrickfaria.jetpack.player;
 
 import br.com.petrickfaria.jetpack.item.JetpackItem;
+import br.com.petrickfaria.jetpack.network.JetpackNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -13,24 +16,20 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import com.mojang.math.Vector3f;
 
 @Mod.EventBusSubscriber(modid = "jetpack")
 public final class JetpackFlight {
     private static final String FLIGHT_KEY = "jetpack_flight";
-    // Vanilla creative flight accelerates at 0.05 blocks/tick and applies 0.91 air drag.
-    private static final double CREATIVE_FLY_ACCELERATION = 0.05D;
-    private static final double CREATIVE_MAX_SPEED = CREATIVE_FLY_ACCELERATION / (1.0D - 0.91D);
-    private static final double BRAKE_DISTANCE = 3.0D;
-    private static final double BRAKE_FALL_SPEED = 0.16D;
+    private static final double SLOW_DESCENT_SPEED = 0.025D;
+    private static final float CREATIVE_FLY_SPEED = 0.05F;
+    private static final DustParticleOptions RED_THRUST = new DustParticleOptions(new Vector3f(0.95F, 0.025F, 0.015F), 0.8F);
 
     public static void handleInput(ServerPlayer player, boolean toggle, boolean up, boolean down, float strafe, float forward) {
-        CompoundTag state = state(player);
+        var state = state(player);
         boolean jumpEdge = up && !state.getBoolean("jumpPressed");
         state.putBoolean("jumpPressed", up);
-        state.putBoolean("up", up);
         state.putBoolean("down", down);
-        state.putFloat("strafe", Mth.clamp(strafe, -1.0F, 1.0F));
-        state.putFloat("forward", Mth.clamp(forward, -1.0F, 1.0F));
         boolean doubleTap = false;
         if (jumpEdge) {
             long now = System.currentTimeMillis();
@@ -38,123 +37,112 @@ public final class JetpackFlight {
             doubleTap = last > 0L && now - last <= 300L;
             state.putLong("lastJumpAt", doubleTap ? 0L : now);
         }
-        // The server derives the double tap from rising key edges; it does not trust a client toggle flag.
+        // The server derives the toggle from rising jump edges rather than trusting a client toggle flag.
         if (doubleTap) {
-            if (state.getBoolean("active")) stop(player, state, true);
+            if (state.getBoolean("active")) stop(player, state);
             else start(player, state);
         }
     }
 
-    private static void start(ServerPlayer player, CompoundTag state) {
+    private static void start(ServerPlayer player, net.minecraft.nbt.CompoundTag state) {
         if (player.isCreative() || player.isSpectator()) return;
         var pack = JetpackEquipment.get(player);
         if (!(pack.getItem() instanceof JetpackItem item) || JetpackItem.energy(pack) <= 0) return;
 
-        double groundY;
-        if (state.contains("lastGroundY")) groundY = state.getDouble("lastGroundY");
-        else groundY = findSurface(player, 256);
+        double groundY = state.contains("lastGroundY") ? state.getDouble("lastGroundY") : findSurface(player, 256);
         if (!Double.isFinite(groundY) || player.getY() > groundY + item.maximumHeight()) return;
 
+        var abilities = player.getAbilities();
         state.putDouble("baseY", groundY);
         state.putBoolean("active", true);
-        state.putBoolean("braking", false);
-        state.putBoolean("previousNoGravity", player.isNoGravity());
+        state.putBoolean("previousMayfly", abilities.mayfly);
+        state.putBoolean("previousFlying", abilities.flying);
+        state.putFloat("previousFlySpeed", abilities.getFlyingSpeed());
         state.putBoolean("previousSprinting", player.isSprinting());
-        player.setNoGravity(true);
+        abilities.mayfly = true;
+        abilities.flying = true;
+        abilities.setFlyingSpeed(CREATIVE_FLY_SPEED);
+        player.setSprinting(false); // suppress the separate vanilla sprint-flight speed boost
+        player.onUpdateAbilities();
         player.fallDistance = 0;
+        JetpackNetwork.syncFlightState(player, true, groundY + item.maximumHeight());
     }
 
-    private static void stop(Player player, CompoundTag state, boolean userRequested) {
+    private static void stop(Player player, net.minecraft.nbt.CompoundTag state) {
         if (!state.getBoolean("active")) return;
         state.putBoolean("active", false);
-        state.putBoolean("up", false);
         state.putBoolean("down", false);
-        player.setNoGravity(state.getBoolean("previousNoGravity"));
+        var abilities = player.getAbilities();
+        abilities.mayfly = state.getBoolean("previousMayfly");
+        abilities.flying = state.getBoolean("previousFlying") && abilities.mayfly;
+        abilities.setFlyingSpeed(state.getFloat("previousFlySpeed"));
         player.setSprinting(state.getBoolean("previousSprinting"));
-        var remaining = JetpackEquipment.get(player);
-        state.putBoolean("braking", userRequested && !player.isOnGround() && JetpackItem.energy(remaining) > 0);
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.onUpdateAbilities();
+            JetpackNetwork.syncFlightState(serverPlayer, false, 0.0D);
+        }
     }
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || event.side.isClient()) return;
+        if (event.phase != TickEvent.Phase.END || event.side.isClient()) return;
         Player player = event.player;
-        CompoundTag state = state(player);
+        var state = state(player);
         if (player.isCreative() || player.isSpectator()) {
-            stop(player, state, false);
+            stop(player, state);
             return;
         }
-        if (player.isOnGround() && !state.getBoolean("active")) {
+        if (player.isOnGround() && !state.getBoolean("active"))
             state.putDouble("lastGroundY", player.getY());
-            state.putBoolean("braking", false);
-        }
         if (state.getBoolean("active")) tickPoweredFlight(player, state);
-        else if (state.getBoolean("braking")) tickBrake(player, state);
     }
 
-    private static void tickPoweredFlight(Player player, CompoundTag state) {
+    private static void tickPoweredFlight(Player player, net.minecraft.nbt.CompoundTag state) {
         var pack = JetpackEquipment.get(player);
         if (!(pack.getItem() instanceof JetpackItem item) || JetpackItem.energy(pack) <= 0) {
-            stop(player, state, false);
+            stop(player, state);
             return;
         }
 
-        Vec3 motion = player.getDeltaMovement();
-        double lift = state.getBoolean("up") == state.getBoolean("down") ? 0.0D
-                : state.getBoolean("up") ? 1.0D : -1.0D;
-        Vec3 startingMotion = lift == 0.0D ? new Vec3(motion.x, 0.0D, motion.z) : motion;
-        Vec3 velocity = creativeFlightVelocity(startingMotion, state.getFloat("strafe"), state.getFloat("forward"),
-                lift, player.getYRot());
         double ceiling = state.getDouble("baseY") + item.maximumHeight();
-        if (player.getY() >= ceiling && velocity.y > 0.0D) velocity = new Vec3(velocity.x, 0.0D, velocity.z);
-        else if (velocity.y > 0.0D && player.getY() + velocity.y > ceiling)
-            velocity = new Vec3(velocity.x, ceiling - player.getY(), velocity.z);
-        // Sprint does not increase jetpack speed; vanilla state is otherwise untouched.
-        player.setSprinting(false);
+        Vec3 motion = player.getDeltaMovement();
+        if (player.getY() > ceiling) {
+            player.setPos(player.getX(), ceiling, player.getZ());
+        }
+        player.setDeltaMovement(constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(), player.getY(), ceiling));
 
         if (JetpackItem.consume(pack, 1, false) != 1) {
             JetpackEquipment.save(player, pack);
-            stop(player, state, false);
+            stop(player, state);
             return;
         }
         JetpackEquipment.save(player, pack);
-        player.setDeltaMovement(velocity);
+        if (player instanceof ServerPlayer serverPlayer && serverPlayer.tickCount % 2 == 0)
+            emitThrusterParticles(serverPlayer);
         player.fallDistance = 0;
-        player.hurtMarked = true;
     }
 
-    private static void tickBrake(Player player, CompoundTag state) {
-        if (player.isOnGround()) { state.putBoolean("braking", false); return; }
-        Vec3 motion = player.getDeltaMovement();
-        if (motion.y >= 0.0D) return;
-        double surface = findSurface(player, 4);
-        double distance = player.getY() - surface;
-        if (!Double.isFinite(surface) || distance < 0.0D || distance > BRAKE_DISTANCE) return;
-        var pack = JetpackEquipment.get(player);
-        if (JetpackItem.energy(pack) <= 0 || JetpackItem.consume(pack, 1, false) != 1) {
-            JetpackEquipment.save(player, pack);
-            state.putBoolean("braking", false);
-            return;
+    public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround, double y, double ceiling) {
+        Vec3 adjusted = down && !onGround && motion.y > -SLOW_DESCENT_SPEED
+                ? new Vec3(motion.x, -SLOW_DESCENT_SPEED, motion.z) : motion;
+        if (y >= ceiling && adjusted.y > 0.0D) return new Vec3(adjusted.x, 0.0D, adjusted.z);
+        return adjusted;
+    }
+
+    private static void emitThrusterParticles(ServerPlayer player) {
+        if (!(player.level instanceof ServerLevel level)) return;
+        double yaw = Math.toRadians(player.getYRot());
+        double backX = Math.sin(yaw) * 0.28D;
+        double backZ = -Math.cos(yaw) * 0.28D;
+        double sideX = Math.cos(yaw) * 0.20D;
+        double sideZ = Math.sin(yaw) * 0.20D;
+        for (int side : new int[] {-1, 1}) {
+            double x = player.getX() + backX + side * sideX;
+            double y = player.getY() + 0.20D;
+            double z = player.getZ() + backZ + side * sideZ;
+            level.sendParticles(RED_THRUST, x, y, z, 1, 0.015D, -0.05D, 0.015D, 0.01D);
+            level.sendParticles(ParticleTypes.SMOKE, x, y, z, 1, 0.025D, -0.025D, 0.025D, 0.008D);
         }
-        JetpackEquipment.save(player, pack);
-        player.setDeltaMovement(motion.x, Math.max(motion.y, -BRAKE_FALL_SPEED), motion.z);
-        player.fallDistance = 0;
-        player.hurtMarked = true;
-    }
-
-    static Vec3 creativeFlightVelocity(Vec3 current, float strafe, float forward, double lift, float yawDegrees) {
-        double x = Mth.clamp(strafe, -1.0F, 1.0F);
-        double z = Mth.clamp(forward, -1.0F, 1.0F);
-        double y = Mth.clamp(lift, -1.0D, 1.0D);
-        double inputLength = Math.sqrt(x * x + y * y + z * z);
-        if (inputLength > 1.0D) { x /= inputLength; y /= inputLength; z /= inputLength; }
-        double yaw = yawDegrees * (Math.PI / 180.0D);
-        double worldX = x * Math.cos(yaw) - z * Math.sin(yaw);
-        double worldZ = z * Math.cos(yaw) + x * Math.sin(yaw);
-        Vec3 next = current.add(worldX * CREATIVE_FLY_ACCELERATION,
-                y * CREATIVE_FLY_ACCELERATION, worldZ * CREATIVE_FLY_ACCELERATION);
-        double length = next.length();
-        return length > CREATIVE_MAX_SPEED ? next.scale(CREATIVE_MAX_SPEED / length) : next;
     }
 
     private static double findSurface(Player player, int depth) {
@@ -170,35 +158,32 @@ public final class JetpackFlight {
         return Double.NaN;
     }
 
-    private static CompoundTag state(Player player) {
-        CompoundTag data = player.getPersistentData();
-        if (!data.contains(FLIGHT_KEY, CompoundTag.TAG_COMPOUND)) data.put(FLIGHT_KEY, new CompoundTag());
+    private static net.minecraft.nbt.CompoundTag state(Player player) {
+        var data = player.getPersistentData();
+        if (!data.contains(FLIGHT_KEY, net.minecraft.nbt.CompoundTag.TAG_COMPOUND))
+            data.put(FLIGHT_KEY, new net.minecraft.nbt.CompoundTag());
         return data.getCompound(FLIGHT_KEY);
     }
 
     @SubscribeEvent
     public static void onPlayerClone(PlayerEvent.Clone event) {
-        CompoundTag original = event.getOriginal().getPersistentData();
-        CompoundTag target = event.getEntity().getPersistentData();
-        if (original.contains("jetpack_equipment", CompoundTag.TAG_COMPOUND))
+        var original = event.getOriginal().getPersistentData();
+        var target = event.getEntity().getPersistentData();
+        if (original.contains("jetpack_equipment", net.minecraft.nbt.CompoundTag.TAG_COMPOUND))
             target.put("jetpack_equipment", original.getCompound("jetpack_equipment").copy());
-        target.put(FLIGHT_KEY, new CompoundTag());
+        target.put(FLIGHT_KEY, new net.minecraft.nbt.CompoundTag());
     }
 
     @SubscribeEvent
     public static void onLogout(PlayerLoggedOutEvent event) {
-        CompoundTag state = state(event.getEntity());
-        stop(event.getEntity(), state, false);
+        stop(event.getEntity(), state(event.getEntity()));
     }
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        CompoundTag state = state(event.getEntity());
-        if (state.getBoolean("active")) event.getEntity().setNoGravity(state.getBoolean("previousNoGravity"));
-        state.putBoolean("active", false);
-        state.putBoolean("braking", false);
+        stop(event.getEntity(), state(event.getEntity()));
+        var state = state(event.getEntity());
         state.putBoolean("jumpPressed", false);
-        state.putBoolean("up", false);
         state.putBoolean("down", false);
     }
 
