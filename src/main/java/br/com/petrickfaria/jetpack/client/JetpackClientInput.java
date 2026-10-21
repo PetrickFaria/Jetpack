@@ -4,6 +4,8 @@ import br.com.petrickfaria.jetpack.JetpackMod;
 import br.com.petrickfaria.jetpack.network.JetpackNetwork;
 import br.com.petrickfaria.jetpack.player.JetpackFlight;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
@@ -45,8 +47,11 @@ public final class JetpackClientInput {
             JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.FlightInput(toggle, up, down, strafe, forward));
 
         var flight = JetpackClientState.getFlight(mc.player.getId());
-        if (flight.active()) mc.player.setDeltaMovement(JetpackFlight.constrainFlightMotion(
-                mc.player.getDeltaMovement(), down, mc.player.onGround(), mc.player.getY(), flight.ceiling()));
+        if (flight.active()) {
+            Vec3 motion = mc.player.getDeltaMovement();
+            Vec3 constrained = JetpackFlight.constrainFlightMotion(motion, down, mc.player.isOnGround(), mc.player.getY(), flight.ceiling());
+            if (!constrained.equals(motion)) mc.player.setDeltaMovement(constrained);
+        }
         previousJump = jump; lastUp = up; lastDown = down; lastStrafe = strafe; lastForward = forward;
     }
 

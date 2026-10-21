@@ -31,7 +31,7 @@ public final class JetpackClientUi {
         GuiComponent.fill(pose, x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0xFF373737);
         GuiComponent.fill(pose, x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0xFF8B8B8B);
         GuiComponent.fill(pose, x + 2, y + 2, x + SLOT_SIZE - 2, y + SLOT_SIZE - 2, 0xFF3F3F3F);
-        ItemStack pack = JetpackClientState.getEquipment();
+        ItemStack pack = JetpackClientState.getEquipment(mc.player.getId());
         if (!pack.isEmpty()) {
             mc.getItemRenderer().renderAndDecorateItem(pack, x + 1, y + 1);
             mc.getItemRenderer().renderGuiItemDecorations(mc.font, pack, x + 1, y + 1);
@@ -59,7 +59,7 @@ public final class JetpackClientUi {
         if (event.getOverlay() != VanillaGuiOverlay.HOTBAR.type()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.screen != null) return;
-        ItemStack pack = JetpackClientState.getEquipment();
+        ItemStack pack = JetpackClientState.getEquipment(mc.player.getId());
         if (!(pack.getItem() instanceof JetpackItem)) return;
         int energy = JetpackItem.energy(pack);
         float fraction = Math.max(0.0F, Math.min(1.0F, energy / (float) JetpackItem.CAPACITY));
