@@ -15,6 +15,12 @@ class JetpackFlightTest {
     }
 
     @Test
+    void shiftDescentCapsExistingFastFall() {
+        Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.0D, -0.3D, 0.0D), true, false, 30.0D, 50.0D);
+        assertEquals(-0.025D, adjusted.y, 1.0E-9D);
+    }
+
+    @Test
     void releasingShiftStopsCommandedDescent() {
         Vec3 motion = new Vec3(0.0D, 0.0D, 0.0D);
         assertEquals(motion, JetpackFlight.constrainFlightMotion(motion, false, false, 30.0D, 50.0D));

@@ -109,7 +109,8 @@ public final class JetpackFlight {
         if (player.getY() > ceiling) {
             player.setPos(player.getX(), ceiling, player.getZ());
         }
-        player.setDeltaMovement(constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(), player.getY(), ceiling));
+        Vec3 constrained = constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(), player.getY(), ceiling);
+        if (!constrained.equals(motion)) player.setDeltaMovement(constrained);
 
         if (JetpackItem.consume(pack, 1, false) != 1) {
             JetpackEquipment.save(player, pack);
@@ -123,7 +124,7 @@ public final class JetpackFlight {
     }
 
     public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround, double y, double ceiling) {
-        Vec3 adjusted = down && !onGround && motion.y > -SLOW_DESCENT_SPEED
+        Vec3 adjusted = down && !onGround
                 ? new Vec3(motion.x, -SLOW_DESCENT_SPEED, motion.z) : motion;
         if (y >= ceiling && adjusted.y > 0.0D) return new Vec3(adjusted.x, 0.0D, adjusted.z);
         return adjusted;
