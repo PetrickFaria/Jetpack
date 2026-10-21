@@ -5,6 +5,7 @@ import br.com.petrickfaria.jetpack.item.JetpackItem;
 import br.com.petrickfaria.jetpack.network.JetpackNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiComponent;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
@@ -40,8 +41,34 @@ public final class JetpackClientUi {
 
     @SubscribeEvent
     public static void clickInventorySlot(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (!(event.getScreen() instanceof InventoryScreen) || event.getButton() != 0) return;
+        if (!(event.getScreen() instanceof InventoryScreen screen)) return;
         Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        if (event.getButton() == 0 && Screen.hasShiftDown()) {
+            int menuSlot = inventorySlotAt(screen, event.getMouseX(), event.getMouseY());
+            ItemStack source = stackForInventoryMenuSlot(mc.player.getInventory(), menuSlot);
+            if (source.getItem() instanceof JetpackItem) {
+                ItemStack equipped = JetpackClientState.getEquipment(mc.player.getId());
+                if (equipped.isEmpty()) {
+                    event.setCanceled(true);
+                    JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.ShiftClickEquip(menuSlot));
+                }
+                return;
+            }
+        }
+
+        if (event.getButton() == 1) {
+            int menuSlot = inventorySlotAt(screen, event.getMouseX(), event.getMouseY());
+            ItemStack source = stackForInventoryMenuSlot(mc.player.getInventory(), menuSlot);
+            if (source.getItem() instanceof JetpackItem) {
+                event.setCanceled(true);
+                JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.OpenFuelFromInventory(menuSlot));
+                return;
+            }
+        }
+
+        if (event.getButton() != 0) return;
         int left = (mc.getWindow().getGuiScaledWidth() - 176) / 2;
         int top = (mc.getWindow().getGuiScaledHeight() - 166) / 2;
         int x = left - 10;
@@ -50,8 +77,18 @@ public final class JetpackClientUi {
         double mouseY = event.getMouseY();
         if (mouseX < x || mouseX >= x + SLOT_SIZE || mouseY < y || mouseY >= y + SLOT_SIZE) return;
         event.setCanceled(true);
-        if (mc.player != null)
-            JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.EquipmentClick());
+        JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.EquipmentClick());
+    }
+
+    /** Maps only the vanilla player inventory grid; other mod container layouts are left untouched. */
+    private static int inventorySlotAt(InventoryScreen screen, double mouseX, double mouseY) {
+        return JetpackInventorySlots.menuSlotAt(screen.width, screen.height, mouseX, mouseY);
+    }
+
+    private static ItemStack stackForInventoryMenuSlot(net.minecraft.world.entity.player.Inventory inventory, int menuSlot) {
+        if (menuSlot >= 9 && menuSlot <= 35) return inventory.items.get(menuSlot);
+        if (menuSlot >= 36 && menuSlot <= 44) return inventory.items.get(menuSlot - 36);
+        return ItemStack.EMPTY;
     }
 
     @SubscribeEvent

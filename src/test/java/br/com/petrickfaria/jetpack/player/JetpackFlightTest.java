@@ -7,6 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class JetpackFlightTest {
     @Test
+    void ceilingTracksTheCurrentTerrainSurfaceForEveryTier() {
+        assertEquals(69.0D, JetpackFlight.altitudeCeiling(64.0D, 5), 0.0D);
+        assertEquals(74.0D, JetpackFlight.altitudeCeiling(64.0D, 10), 0.0D);
+        assertEquals(79.0D, JetpackFlight.altitudeCeiling(64.0D, 15), 0.0D);
+        assertEquals(84.0D, JetpackFlight.altitudeCeiling(64.0D, 20), 0.0D);
+        assertEquals(89.0D, JetpackFlight.altitudeCeiling(64.0D, 25), 0.0D);
+        assertEquals(114.0D, JetpackFlight.altitudeCeiling(64.0D, 50), 0.0D);
+        assertEquals(90.5D, JetpackFlight.altitudeCeiling(80.5D, 10), 0.0D);
+    }
+
+    @Test
     void shiftDescentIsSlowAndPreservesHorizontalControl() {
         Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.12D, 0.0D, -0.08D), true, false, 30.0D, 50.0D);
         assertEquals(0.12D, adjusted.x, 1.0E-9D);
@@ -30,6 +41,20 @@ class JetpackFlightTest {
     void shiftDoesNotOverrideNormalGroundMovement() {
         Vec3 motion = new Vec3(0.03D, -0.08D, 0.02D);
         assertEquals(motion, JetpackFlight.constrainFlightMotion(motion, true, true, 10.0D, 50.0D));
+    }
+
+    @Test
+    void lowerTerrainAppliesAGentleDescentWithoutTeleportingMotion() {
+        Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, 0.25D, -0.1D), false, false, 75.0D, 70.0D);
+        assertEquals(0.1D, adjusted.x, 0.0D);
+        assertEquals(-0.025D, adjusted.y, 0.0D);
+        assertEquals(-0.1D, adjusted.z, 0.0D);
+    }
+
+    @Test
+    void lowerTerrainCapsAnExistingFastFallToASafeRate() {
+        Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, -0.8D, -0.1D), false, false, 75.0D, 70.0D);
+        assertEquals(-0.08D, adjusted.y, 0.0D);
     }
 
     @Test

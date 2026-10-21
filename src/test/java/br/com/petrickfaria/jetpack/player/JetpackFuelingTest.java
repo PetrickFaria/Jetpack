@@ -1,9 +1,28 @@
 package br.com.petrickfaria.jetpack.player;
 
 import org.junit.jupiter.api.Test;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class JetpackFuelingTest {
+    @Test
+    void onlyCoalAndCharcoalAreAccepted() {
+        assertTrue(JetpackFueling.isFuel(new ItemStack(Items.COAL)));
+        assertTrue(JetpackFueling.isFuel(new ItemStack(Items.CHARCOAL)));
+        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.COAL_BLOCK)));
+        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.STICK)));
+        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.OAK_PLANKS)));
+        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.OAK_LOG)));
+        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.LAVA_BUCKET)));
+        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.DRIED_KELP_BLOCK)));
+        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.BLAZE_ROD)));
+        assertFalse(JetpackFueling.isFuel(ItemStack.EMPTY));
+    }
+
     @Test
     void coalBurnProducesExactlyTenPercentOfCapacity() {
         assertEquals(600.0D, JetpackFueling.energyForBurnTicks(1600), 0.000001D);

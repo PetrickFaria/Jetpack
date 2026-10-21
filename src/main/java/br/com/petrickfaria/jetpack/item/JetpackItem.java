@@ -40,12 +40,6 @@ public class JetpackItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
-        if (player.isShiftKeyDown() && !level.isClientSide) {
-            ItemStack previous = JetpackEquipment.get(player);
-            JetpackEquipment.set(player, held);
-            player.setItemInHand(hand, previous);
-            return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), false);
-        }
         if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
             UUID id = getOrCreateInstanceId(held);
             NetworkHooks.openScreen(serverPlayer, new SimpleMenuProvider(

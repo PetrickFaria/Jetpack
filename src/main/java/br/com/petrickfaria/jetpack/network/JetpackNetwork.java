@@ -19,9 +19,14 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 import java.util.function.Supplier;
+import java.util.UUID;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraftforge.network.NetworkHooks;
 
 public final class JetpackNetwork {
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(JetpackMod.MOD_ID, "main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
@@ -34,6 +39,10 @@ public final class JetpackNetwork {
                 EquipmentState::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(3, FlightState.class, FlightState::encode, FlightState::decode,
                 FlightState::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(4, ShiftClickEquip.class, ShiftClickEquip::encode, ShiftClickEquip::decode,
+                ShiftClickEquip::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(5, OpenFuelFromInventory.class, OpenFuelFromInventory::encode, OpenFuelFromInventory::decode,
+                OpenFuelFromInventory::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     public static void syncEquipment(ServerPlayer player) {
@@ -63,8 +72,9 @@ public final class JetpackNetwork {
                 sendToPlayer(watcher, new EquipmentState(target.getId(), JetpackEquipment.get(target)));
                 var state = target.getPersistentData().getCompound("jetpack_flight");
                 var pack = JetpackEquipment.get(target);
-                double ceiling = state.getDouble("baseY");
-                if (pack.getItem() instanceof JetpackItem item) ceiling += item.maximumHeight();
+                double ceiling = state.getDouble("ceiling");
+                if (!state.contains("ceiling") && pack.getItem() instanceof JetpackItem item)
+                    ceiling = state.getDouble("baseY") + item.maximumHeight();
                 sendToPlayer(watcher, new FlightState(target.getId(), state.getBoolean("active"), ceiling));
             }
         }
@@ -97,15 +107,69 @@ public final class JetpackNetwork {
             c.enqueueWork(() -> {
                 ServerPlayer p = c.getSender();
                 if (p == null || !(p.containerMenu instanceof InventoryMenu)) return;
-                var cursor = p.containerMenu.getCarried();
+                ItemStack cursor = p.containerMenu.getCarried();
                 if (!cursor.isEmpty() && !(cursor.getItem() instanceof JetpackItem)) return;
-                var equipped = JetpackEquipment.get(p);
+                ItemStack equipped = JetpackEquipment.get(p);
+                if (cursor.isEmpty() && equipped.isEmpty()) return;
                 JetpackEquipment.set(p, cursor);
                 p.containerMenu.setCarried(equipped);
                 p.containerMenu.broadcastChanges();
             });
             c.setPacketHandled(true);
         }
+    }
+
+    /** Moves a jetpack from a player inventory slot into the accessory slot, without replacing it. */
+    public static final class ShiftClickEquip {
+        private final int menuSlot;
+        public ShiftClickEquip(int menuSlot) { this.menuSlot = menuSlot; }
+        private static void encode(ShiftClickEquip m, FriendlyByteBuf b) { b.writeVarInt(m.menuSlot); }
+        private static ShiftClickEquip decode(FriendlyByteBuf b) { return new ShiftClickEquip(b.readVarInt()); }
+        private static void handle(ShiftClickEquip m, Supplier<NetworkEvent.Context> s) {
+            NetworkEvent.Context c = s.get();
+            c.enqueueWork(() -> {
+                ServerPlayer p = c.getSender();
+                if (p == null || !(p.containerMenu instanceof InventoryMenu) || !isPlayerInventorySlot(m.menuSlot)) return;
+                if (!JetpackEquipment.get(p).isEmpty()) return;
+                ItemStack source = inventoryStack(p, m.menuSlot);
+                if (!(source.getItem() instanceof JetpackItem)) return;
+                ItemStack moved = source.split(1);
+                JetpackEquipment.set(p, moved);
+                p.getInventory().setChanged();
+                p.containerMenu.broadcastChanges();
+            });
+            c.setPacketHandled(true);
+        }
+    }
+
+    /** Opens a fuel menu for the exact jetpack clicked in the player's inventory. */
+    public static final class OpenFuelFromInventory {
+        private final int menuSlot;
+        public OpenFuelFromInventory(int menuSlot) { this.menuSlot = menuSlot; }
+        private static void encode(OpenFuelFromInventory m, FriendlyByteBuf b) { b.writeVarInt(m.menuSlot); }
+        private static OpenFuelFromInventory decode(FriendlyByteBuf b) { return new OpenFuelFromInventory(b.readVarInt()); }
+        private static void handle(OpenFuelFromInventory m, Supplier<NetworkEvent.Context> s) {
+            NetworkEvent.Context c = s.get();
+            c.enqueueWork(() -> {
+                ServerPlayer p = c.getSender();
+                if (p == null || !(p.containerMenu instanceof InventoryMenu) || !isPlayerInventorySlot(m.menuSlot)) return;
+                ItemStack pack = inventoryStack(p, m.menuSlot);
+                if (!(pack.getItem() instanceof JetpackItem)) return;
+                UUID id = JetpackItem.getOrCreateInstanceId(pack);
+                ItemStack snapshot = pack.copy();
+                p.getInventory().setChanged();
+                NetworkHooks.openScreen(p, new SimpleMenuProvider(
+                        (containerId, inventory, user) -> new br.com.petrickfaria.jetpack.menu.JetpackFuelMenu(containerId, inventory, id),
+                        Component.literal("Abastecer Jetpack")), buf -> { buf.writeUUID(id); buf.writeItem(snapshot); });
+            });
+            c.setPacketHandled(true);
+        }
+    }
+
+    private static boolean isPlayerInventorySlot(int menuSlot) { return menuSlot >= 9 && menuSlot <= 44; }
+    private static ItemStack inventoryStack(ServerPlayer player, int menuSlot) {
+        int inventoryIndex = menuSlot <= 35 ? menuSlot : menuSlot - 36;
+        return player.getInventory().items.get(inventoryIndex);
     }
 
     public static final class EquipmentState {

@@ -6,8 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraftforge.common.ForgeHooks;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -39,8 +38,7 @@ public final class JetpackFueling {
     }
 
     public static boolean isFuel(ItemStack stack) {
-        return !stack.isEmpty() && !stack.getItem().hasCraftingRemainingItem()
-                && ForgeHooks.getBurnTime(stack, RecipeType.SMELTING) > 0;
+        return !stack.isEmpty() && (stack.is(Items.COAL) || stack.is(Items.CHARCOAL));
     }
 
     public static ItemStack getFuel(ItemStack jetpack) {

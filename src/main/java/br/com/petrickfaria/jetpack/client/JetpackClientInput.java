@@ -3,8 +3,8 @@ package br.com.petrickfaria.jetpack.client;
 import br.com.petrickfaria.jetpack.JetpackMod;
 import br.com.petrickfaria.jetpack.network.JetpackNetwork;
 import br.com.petrickfaria.jetpack.player.JetpackFlight;
+import br.com.petrickfaria.jetpack.item.JetpackItem;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -51,6 +51,13 @@ public final class JetpackClientInput {
             Vec3 motion = mc.player.getDeltaMovement();
             Vec3 constrained = JetpackFlight.constrainFlightMotion(motion, down, mc.player.isOnGround(), mc.player.getY(), flight.ceiling());
             if (!constrained.equals(motion)) mc.player.setDeltaMovement(constrained);
+        } else if (down && !mc.player.isCreative() && !mc.player.isSpectator()) {
+            var pack = JetpackClientState.getEquipment(mc.player.getId());
+            if (pack.getItem() instanceof JetpackItem && JetpackItem.energy(pack) > 0 && !mc.player.isOnGround()) {
+                Vec3 motion = mc.player.getDeltaMovement();
+                Vec3 adjusted = JetpackFlight.controlledDescentMotion(motion, true, false);
+                if (!adjusted.equals(motion)) mc.player.setDeltaMovement(adjusted);
+            }
         }
         previousJump = jump; lastUp = up; lastDown = down; lastStrafe = strafe; lastForward = forward;
     }
