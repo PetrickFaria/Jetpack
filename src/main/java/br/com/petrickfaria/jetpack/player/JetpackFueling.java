@@ -6,9 +6,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.ForgeHooks;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -40,7 +41,14 @@ public final class JetpackFueling {
     }
 
     public static boolean isFuel(ItemStack stack) {
-        return !stack.isEmpty() && (stack.is(Items.COAL) || stack.is(Items.CHARCOAL));
+        if (stack.isEmpty()) return false;
+        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        return isAllowedFuelId(id);
+    }
+
+    public static boolean isAllowedFuelId(ResourceLocation id) {
+        return id != null && "minecraft".equals(id.getNamespace())
+                && ("coal".equals(id.getPath()) || "charcoal".equals(id.getPath()));
     }
 
     public static ItemStack getFuel(ItemStack jetpack) {

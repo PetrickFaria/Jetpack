@@ -1,8 +1,7 @@
 package br.com.petrickfaria.jetpack.player;
 
 import org.junit.jupiter.api.Test;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.resources.ResourceLocation;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,16 +10,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class JetpackFuelingTest {
     @Test
     void onlyCoalAndCharcoalAreAccepted() {
-        assertTrue(JetpackFueling.isFuel(new ItemStack(Items.COAL)));
-        assertTrue(JetpackFueling.isFuel(new ItemStack(Items.CHARCOAL)));
-        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.COAL_BLOCK)));
-        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.STICK)));
-        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.OAK_PLANKS)));
-        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.OAK_LOG)));
-        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.LAVA_BUCKET)));
-        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.DRIED_KELP_BLOCK)));
-        assertFalse(JetpackFueling.isFuel(new ItemStack(Items.BLAZE_ROD)));
-        assertFalse(JetpackFueling.isFuel(ItemStack.EMPTY));
+        assertTrue(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "coal")));
+        assertTrue(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "charcoal")));
+        assertFalse(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "coal_block")));
+        assertFalse(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "stick")));
+        assertFalse(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "oak_planks")));
+        assertFalse(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "oak_log")));
+        assertFalse(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "lava_bucket")));
+        assertFalse(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "dried_kelp_block")));
+        assertFalse(JetpackFueling.isAllowedFuelId(new ResourceLocation("minecraft", "blaze_rod")));
+        assertFalse(JetpackFueling.isAllowedFuelId(null));
     }
 
     @Test
