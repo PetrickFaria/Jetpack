@@ -90,8 +90,31 @@ tasks.register('verifyModJarAssets') {
                 } finally {
                     input.close()
                 }
+
+                def textureInput = archive.getInputStream(textureEntry)
+                try {
+                    def image = javax.imageio.ImageIO.read(textureInput)
+                    if (image == null || image.colorModel.numComponents < 4) {
+                        throw new GradleException("Texture has no alpha channel in JAR: ${texturePath}")
+                    }
+                    def alpha = image.getAlphaRaster()
+                    def transparentPixels = 0
+                    def opaquePixels = 0
+                    for (int y = 0; y < image.height; y++) {
+                        for (int x = 0; x < image.width; x++) {
+                            int value = alpha.getSample(x, y, 0)
+                            if (value == 0) transparentPixels++
+                            if (value == 255) opaquePixels++
+                        }
+                    }
+                    if (transparentPixels == 0 || opaquePixels == 0) {
+                        throw new GradleException("Texture must contain both transparent background and opaque artwork: ${texturePath}")
+                    }
+                } finally {
+                    textureInput.close()
+                }
             }
-            logger.lifecycle("Verified pack.mcmeta, six jetpack item models, and six PNG textures in ${jarFile.name}")
+            logger.lifecycle("Verified pack.mcmeta, six item models, and six transparent PNG textures in ${jarFile.name}")
         } finally {
             archive.close()
         }
