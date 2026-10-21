@@ -52,15 +52,21 @@ jar {
 jar.finalizedBy('reobfJar')
 
 tasks.register('verifyModJarAssets') {
-    dependsOn reobfJar
+    dependsOn processResources, reobfJar
     doLast {
+        // Verify source resources, Gradle's processed output, and the exact distributable JAR.
         def jarFile = tasks.jar.archiveFile.get().asFile
+        def sourceResources = file('src/main/resources')
+        def processedResources = sourceSets.main.output.resourcesDir
         def tiers = ['wood', 'iron', 'gold', 'emerald', 'diamond', 'netherite']
         def expectedPngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as byte[]
         def archive = new java.util.zip.ZipFile(jarFile)
         try {
             def packMetaEntry = archive.getEntry('pack.mcmeta')
             if (packMetaEntry == null) throw new GradleException('Missing pack.mcmeta at the JAR root')
+            [new File(sourceResources, 'pack.mcmeta'), new File(processedResources, 'pack.mcmeta')].each { file ->
+                if (!file.isFile()) throw new GradleException("Resource processing omitted: ${file}")
+            }
             def packMeta = new groovy.json.JsonSlurper().parse(archive.getInputStream(packMetaEntry))
             if (packMeta.pack?.pack_format != 9) {
                 throw new GradleException('Invalid pack.mcmeta: Minecraft 1.19.2 resource pack_format must be 9')
@@ -70,6 +76,15 @@ tasks.register('verifyModJarAssets') {
                 def stem = "jetpack_${tier}"
                 def modelPath = "assets/jetpack/models/item/${stem}.json"
                 def texturePath = "assets/jetpack/textures/item/${stem}.png"
+                [modelPath, texturePath].each { resourcePath ->
+                    if (!new File(sourceResources, resourcePath).isFile()) {
+                        throw new GradleException("Missing source resource: ${resourcePath}")
+                    }
+                    if (!new File(processedResources, resourcePath).isFile()) {
+                        throw new GradleException("Resource processing omitted: ${resourcePath}")
+                    }
+                }
+
                 def modelEntry = archive.getEntry(modelPath)
                 def textureEntry = archive.getEntry(texturePath)
                 if (modelEntry == null) throw new GradleException("Missing model in JAR: ${modelPath}")

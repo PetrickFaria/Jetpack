@@ -19,7 +19,17 @@ jobs:
           gradle-version: '7.5.1'
       - name: Compile and package
         run: gradle --no-daemon clean build verifyModJarAssets
-      - name: Upload mod jar
+      - name: Assert one verified distributable
+        shell: bash
+        run: |
+          shopt -s nullglob
+          jars=(build/libs/jetpack-*.jar)
+          if [ "${#jars[@]}" -ne 1 ]; then
+            printf 'Expected exactly one Jetpack distributable, found %s\\n' "${#jars[@]}"
+            printf '%s\\n' "${jars[@]}"
+            exit 1
+          fi
+      - name: Upload verified mod jar
         uses: actions/upload-artifact@v4
         with:
           name: jetpack-${{ github.sha }}
