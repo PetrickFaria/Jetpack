@@ -129,7 +129,32 @@ tasks.register('verifyModJarAssets') {
                     textureInput.close()
                 }
             }
-            logger.lifecycle("Verified pack.mcmeta, six item models, and six transparent PNG textures in ${jarFile.name}")
+            def soundJsonPath = 'assets/jetpack/sounds.json'
+            def soundPath = 'assets/jetpack/sounds/jetpack_turbine.ogg'
+            [soundJsonPath, soundPath].each { resourcePath ->
+                if (!new File(sourceResources, resourcePath).isFile())
+                    throw new GradleException("Missing source sound resource: ${resourcePath}")
+                if (!new File(processedResources, resourcePath).isFile())
+                    throw new GradleException("Resource processing omitted sound resource: ${resourcePath}")
+                if (archive.getEntry(resourcePath) == null)
+                    throw new GradleException("Missing sound resource in JAR: ${resourcePath}")
+            }
+            def soundJson = new groovy.json.JsonSlurper().parse(archive.getInputStream(archive.getEntry(soundJsonPath)))
+            if (!(soundJson.jetpack_turbine?.sounds instanceof List)
+                    || soundJson.jetpack_turbine.sounds.isEmpty()
+                    || soundJson.jetpack_turbine.sounds[0].name != 'jetpack:jetpack_turbine') {
+                throw new GradleException('Invalid jetpack turbine sound registration in sounds.json')
+            }
+            def oggInput = archive.getInputStream(archive.getEntry(soundPath))
+            try {
+                byte[] oggHeader = new byte[4]
+                if (oggInput.read(oggHeader) != 4 || new String(oggHeader, java.nio.charset.StandardCharsets.US_ASCII) != 'OggS') {
+                    throw new GradleException('Invalid OGG turbine audio in JAR')
+                }
+            } finally {
+                oggInput.close()
+            }
+            logger.lifecycle("Verified pack.mcmeta, six item models, six transparent PNG textures, and turbine sound in ${jarFile.name}")
         } finally {
             archive.close()
         }

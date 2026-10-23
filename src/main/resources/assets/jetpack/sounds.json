@@ -1,0 +1,10 @@
+{
+  "jetpack_turbine": {
+    "sounds": [
+      {
+        "name": "jetpack:jetpack_turbine",
+        "stream": true
+      }
+    ]
+  }
+}

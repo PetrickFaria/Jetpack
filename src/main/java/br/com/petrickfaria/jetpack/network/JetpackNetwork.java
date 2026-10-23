@@ -26,7 +26,7 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraftforge.network.NetworkHooks;
 
 public final class JetpackNetwork {
-    private static final String PROTOCOL = "4";
+    private static final String PROTOCOL = "5";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(JetpackMod.MOD_ID, "main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
@@ -43,6 +43,8 @@ public final class JetpackNetwork {
                 ShiftClickEquip::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(5, OpenFuelFromInventory.class, OpenFuelFromInventory::encode, OpenFuelFromInventory::decode,
                 OpenFuelFromInventory::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(6, ThrustSoundState.class, ThrustSoundState::encode, ThrustSoundState::decode,
+                ThrustSoundState::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     public static void syncEquipment(ServerPlayer player) {
@@ -55,6 +57,11 @@ public final class JetpackNetwork {
     }
     public static void syncFlightState(ServerPlayer player, boolean active, double ceiling) {
         FlightState message = new FlightState(player.getId(), active, ceiling);
+        sendToPlayer(player, message);
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> player), message);
+    }
+    public static void syncThrustSound(ServerPlayer player, boolean playing) {
+        ThrustSoundState message = new ThrustSoundState(player.getId(), playing);
         sendToPlayer(player, message);
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> player), message);
     }
@@ -76,6 +83,7 @@ public final class JetpackNetwork {
                 if (!state.contains("ceiling") && pack.getItem() instanceof JetpackItem item)
                     ceiling = state.getDouble("baseY") + item.maximumHeight();
                 sendToPlayer(watcher, new FlightState(target.getId(), state.getBoolean("active"), ceiling));
+                sendToPlayer(watcher, new ThrustSoundState(target.getId(), state.getBoolean("thrustSound")));
             }
         }
     }
@@ -197,6 +205,20 @@ public final class JetpackNetwork {
             NetworkEvent.Context c = s.get();
             c.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> br.com.petrickfaria.jetpack.client.JetpackClientState.setFlight(m.entityId, m.active, m.ceiling)));
+            c.setPacketHandled(true);
+        }
+    }
+
+    public static final class ThrustSoundState {
+        private final int entityId;
+        private final boolean playing;
+        private ThrustSoundState(int entityId, boolean playing) { this.entityId = entityId; this.playing = playing; }
+        private static void encode(ThrustSoundState m, FriendlyByteBuf b) { b.writeVarInt(m.entityId); b.writeBoolean(m.playing); }
+        private static ThrustSoundState decode(FriendlyByteBuf b) { return new ThrustSoundState(b.readVarInt(), b.readBoolean()); }
+        private static void handle(ThrustSoundState m, Supplier<NetworkEvent.Context> s) {
+            NetworkEvent.Context c = s.get();
+            c.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> br.com.petrickfaria.jetpack.client.JetpackClientSounds.setThrust(m.entityId, m.playing)));
             c.setPacketHandled(true);
         }
     }

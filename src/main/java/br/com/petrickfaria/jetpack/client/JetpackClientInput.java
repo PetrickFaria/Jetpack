@@ -100,7 +100,8 @@ public final class JetpackClientInput {
             var pack = JetpackClientState.getEquipment(mc.player.getId());
             if (pack.getItem() instanceof JetpackItem && JetpackItem.energy(pack) > 0 && !mc.player.isOnGround()) {
                 Vec3 motion = mc.player.getDeltaMovement();
-                Vec3 adjusted = JetpackFlight.controlledDescentMotion(motion, true, false);
+                Vec3 adjusted = JetpackFlight.controlledDescentMotion(motion, true, false,
+                        strafe, forward, mc.player.getYRot());
                 if (!adjusted.equals(motion)) mc.player.setDeltaMovement(adjusted);
             }
         }
@@ -112,6 +113,7 @@ public final class JetpackClientInput {
         previousJump = false; lastUp = false; lastDown = false; lastStrafe = 0.0F; lastForward = 0.0F; previousJumpAt = 0L;
         previousFlightActive = false; lastFlightY = Double.NaN; measuredAscentSpeed = 0.0D;
         JetpackClientState.clear();
+        JetpackClientSounds.stopAll();
     }
     private JetpackClientInput() {}
 }

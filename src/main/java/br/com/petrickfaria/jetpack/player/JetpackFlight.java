@@ -28,6 +28,8 @@ public final class JetpackFlight {
     public static final int POWERED_ENERGY_PER_TICK = 1;
     public static final double CEILING_POSITION_TOLERANCE = 0.2D;
     private static final double SLOW_DESCENT_SPEED = 0.025D;
+    private static final double AIRBORNE_INPUT_SPEED = 0.02D;
+    private static final double FLIGHT_HORIZONTAL_DRAG = 0.91D;
     // Vanilla LocalPlayer adds 3 * flyingSpeed to vertical motion while jump is held.
     // Creative Player.travel retains 60% of that motion after moving, so sustained
     // ascent displacement converges to input / (1 - 0.6).
@@ -41,6 +43,8 @@ public final class JetpackFlight {
         var state = state(player);
         state.putBoolean("up", up);
         state.putBoolean("down", down);
+        state.putFloat("strafe", strafe);
+        state.putFloat("forward", forward);
         // The client sends one toggle only after its double-tap detector fires.
         // Do not independently time the same taps on the server: packet timing can
         // differ enough to miss a valid retoggle during a fall.
@@ -109,10 +113,18 @@ public final class JetpackFlight {
         var state = state(player);
         if (player.isCreative() || player.isSpectator()) {
             stop(player, state);
+            syncThrustSound(player, state, false);
             return;
         }
         if (state.getBoolean("active")) tickPoweredFlight(player, state);
         else tickControlledDescent(player, state);
+        boolean hasInput = state.getBoolean("up") || state.getBoolean("down")
+                || state.getFloat("strafe") != 0.0F || state.getFloat("forward") != 0.0F;
+        boolean active = state.getBoolean("active");
+        boolean thrusting = active && (hasInput || state.getBoolean("terrainCorrection"))
+                || !active && state.getBoolean("down") && !player.isOnGround();
+        thrusting &= equippedPack(player).energy > 0;
+        syncThrustSound(player, state, thrusting);
     }
 
     private static void tickPoweredFlight(Player player, net.minecraft.nbt.CompoundTag state) {
@@ -199,7 +211,8 @@ public final class JetpackFlight {
         var pack = JetpackEquipment.get(player);
         if (!(pack.getItem() instanceof JetpackItem) || JetpackItem.energy(pack) <= 0) return;
         Vec3 motion = player.getDeltaMovement();
-        Vec3 adjusted = controlledDescentMotion(motion, true, false);
+        Vec3 adjusted = controlledDescentMotion(motion, true, false,
+                state.getFloat("strafe"), state.getFloat("forward"), player.getYRot());
         player.setDeltaMovement(adjusted);
         if (JetpackItem.consume(pack, 1, false) == 1) {
             JetpackEquipment.save(player, pack);
@@ -298,6 +311,33 @@ public final class JetpackFlight {
         return down && !onGround ? new Vec3(motion.x, -SLOW_DESCENT_SPEED, motion.z) : motion;
     }
 
+    /**
+     * The airborne fall path adds 0.02 horizontal input before applying 0.91 drag.
+     * Creative flight adds the player's 0.05 flying input with the same drag. This
+     * adds only the missing post-travel delta while preserving the controlled Y speed.
+     */
+    public static Vec3 controlledDescentMotion(Vec3 motion, boolean down, boolean onGround,
+                                                float strafe, float forward, float yawDegrees) {
+        if (!down || onGround) return motion;
+        Vec3 input = normalizeMovementInput(strafe, forward).yRot((float) Math.toRadians(-yawDegrees));
+        double missingAcceleration = (CREATIVE_FLY_SPEED - AIRBORNE_INPUT_SPEED) * FLIGHT_HORIZONTAL_DRAG;
+        return new Vec3(motion.x + input.x * missingAcceleration,
+                -SLOW_DESCENT_SPEED,
+                motion.z + input.z * missingAcceleration);
+    }
+
+    public static Vec3 normalizeMovementInput(float strafe, float forward) {
+        Vec3 input = new Vec3(strafe, 0.0D, forward);
+        double lengthSqr = input.lengthSqr();
+        return lengthSqr < 1.0E-7D ? Vec3.ZERO : input.scale(1.0D / Math.max(1.0D, Math.sqrt(lengthSqr)));
+    }
+
+    private static void syncThrustSound(Player player, net.minecraft.nbt.CompoundTag state, boolean playing) {
+        if (!(player instanceof ServerPlayer serverPlayer) || state.getBoolean("thrustSound") == playing) return;
+        state.putBoolean("thrustSound", playing);
+        JetpackNetwork.syncThrustSound(serverPlayer, playing);
+    }
+
     private static void emitThrusterParticles(ServerPlayer player) {
         if (!(player.level instanceof ServerLevel level)) return;
         double yaw = Math.toRadians(player.getYRot());
@@ -367,7 +407,9 @@ public final class JetpackFlight {
 
     @SubscribeEvent
     public static void onLogout(PlayerLoggedOutEvent event) {
-        stop(event.getEntity(), state(event.getEntity()));
+        var state = state(event.getEntity());
+        stop(event.getEntity(), state);
+        syncThrustSound(event.getEntity(), state, false);
     }
 
     @SubscribeEvent
@@ -377,6 +419,9 @@ public final class JetpackFlight {
         state.putBoolean("jumpPressed", false);
         state.putBoolean("up", false);
         state.putBoolean("down", false);
+        state.putBoolean("thrustSound", false);
+        state.putFloat("strafe", 0.0F);
+        state.putFloat("forward", 0.0F);
     }
 
     private record ItemStackView(JetpackItem item, int energy) {}

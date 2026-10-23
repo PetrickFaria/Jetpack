@@ -120,6 +120,43 @@ class JetpackFlightTest {
     }
 
     @Test
+    void controlledDescentHorizontalDeltaMatchesCreativeFlightForCardinalAndDiagonalInput() {
+        double drag = 0.91D;
+        double airborneInput = 0.02D;
+        double creativeInput = 0.05D;
+        double[][] inputs = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}, {1, 1}};
+        for (double[] direction : inputs) {
+            Vec3 input = JetpackFlight.normalizeMovementInput((float) direction[0], (float) direction[1]);
+            Vec3 startingVelocity = new Vec3(0.11D, -0.17D, -0.07D);
+            Vec3 afterOrdinaryAirTravel = new Vec3(
+                    (startingVelocity.x + input.x * airborneInput) * drag,
+                    startingVelocity.y,
+                    (startingVelocity.z + input.z * airborneInput) * drag);
+            Vec3 controlled = JetpackFlight.controlledDescentMotion(afterOrdinaryAirTravel, true, false,
+                    (float) direction[0], (float) direction[1], 0.0F);
+            double expectedX = (startingVelocity.x + input.x * creativeInput) * drag;
+            double expectedZ = (startingVelocity.z + input.z * creativeInput) * drag;
+            assertEquals(expectedX, controlled.x, 1.0E-12D);
+            assertEquals(-0.025D, controlled.y, 0.0D);
+            assertEquals(expectedZ, controlled.z, 1.0E-12D);
+        }
+    }
+
+    @Test
+    void controlledDescentUsesFacingDirectionAndStopsAddingThrustWhenKeysAreReleased() {
+        Vec3 forwardInput = JetpackFlight.normalizeMovementInput(0.0F, 1.0F).yRot((float) Math.toRadians(-90.0D));
+        Vec3 afterAirTravel = new Vec3(0.0D, -0.2D, 0.0D);
+        Vec3 controlled = JetpackFlight.controlledDescentMotion(afterAirTravel, true, false,
+                0.0F, 1.0F, 90.0F);
+        assertEquals(forwardInput.x * (0.05D - 0.02D) * 0.91D, controlled.x, 1.0E-12D);
+        assertEquals(forwardInput.z * (0.05D - 0.02D) * 0.91D, controlled.z, 1.0E-12D);
+        assertEquals(afterAirTravel.x, JetpackFlight.controlledDescentMotion(
+                afterAirTravel, true, false, 0.0F, 0.0F, 90.0F).x, 0.0D);
+        assertEquals(afterAirTravel.z, JetpackFlight.controlledDescentMotion(
+                afterAirTravel, true, false, 0.0F, 0.0F, 90.0F).z, 0.0D);
+    }
+
+    @Test
     void ceilingStopsOnlyUpwardMotion() {
         Vec3 rising = new Vec3(0.1D, 0.2D, -0.1D);
         Vec3 capped = JetpackFlight.constrainFlightMotion(rising, false, false, 55.0D, 55.0D);
