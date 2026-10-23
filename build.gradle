@@ -60,6 +60,9 @@ tasks.register('verifyModJarAssets') {
         def processedResources = sourceSets.main.output.resourcesDir
         def tiers = ['wood', 'iron', 'gold', 'emerald', 'diamond', 'netherite']
         def expectedPngHeader = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as byte[]
+        int[] woodPixels = null
+        int woodWidth = -1
+        int woodHeight = -1
         def archive = new java.util.zip.ZipFile(jarFile)
         try {
             def packMetaEntry = archive.getEntry('pack.mcmeta')
@@ -112,18 +115,49 @@ tasks.register('verifyModJarAssets') {
                     if (image == null || image.colorModel.numComponents < 4) {
                         throw new GradleException("Texture has no alpha channel in JAR: ${texturePath}")
                     }
+                    if (tier == 'wood') {
+                        woodWidth = image.width
+                        woodHeight = image.height
+                        woodPixels = image.getRGB(0, 0, image.width, image.height, null, 0, image.width)
+                    } else {
+                        if (image.width != woodWidth || image.height != woodHeight) {
+                            throw new GradleException("Icon dimensions differ from the wooden reference: ${texturePath}")
+                        }
+                    }
                     def alpha = image.getAlphaRaster()
                     def transparentPixels = 0
                     def opaquePixels = 0
+                    def changedMaterialPixels = 0
                     for (int y = 0; y < image.height; y++) {
                         for (int x = 0; x < image.width; x++) {
                             int value = alpha.getSample(x, y, 0)
                             if (value == 0) transparentPixels++
                             if (value == 255) opaquePixels++
+                            if (tier != 'wood') {
+                                int index = y * image.width + x
+                                int reference = woodPixels[index]
+                                int current = image.getRGB(x, y)
+                                if ((current >>> 24) != (reference >>> 24)) {
+                                    throw new GradleException("Icon alpha mask differs from wooden reference: ${texturePath}")
+                                }
+                                float[] hsb = java.awt.Color.RGBtoHSB((reference >>> 16) & 0xff,
+                                        (reference >>> 8) & 0xff, reference & 0xff, null)
+                                float hueDegrees = hsb[0] * 360.0f
+                                boolean materialPixel = (reference >>> 24) != 0 && hsb[1] >= 0.22f
+                                        && hueDegrees >= 11.8f && hueDegrees <= 38.2f
+                                if (materialPixel) {
+                                    if ((reference & 0x00ffffff) != (current & 0x00ffffff)) changedMaterialPixels++
+                                } else if ((reference & 0x00ffffff) != (current & 0x00ffffff)) {
+                                    throw new GradleException("Non-material icon pixels differ from wooden reference: ${texturePath}")
+                                }
+                            }
                         }
                     }
                     if (transparentPixels == 0 || opaquePixels == 0) {
                         throw new GradleException("Texture must contain both transparent background and opaque artwork: ${texturePath}")
+                    }
+                    if (tier != 'wood' && changedMaterialPixels == 0) {
+                        throw new GradleException("No material palette change found in icon: ${texturePath}")
                     }
                 } finally {
                     textureInput.close()
@@ -142,7 +176,9 @@ tasks.register('verifyModJarAssets') {
             def soundJson = new groovy.json.JsonSlurper().parse(archive.getInputStream(archive.getEntry(soundJsonPath)))
             if (!(soundJson.jetpack_turbine?.sounds instanceof List)
                     || soundJson.jetpack_turbine.sounds.isEmpty()
-                    || soundJson.jetpack_turbine.sounds[0].name != 'jetpack:jetpack_turbine') {
+                    || soundJson.jetpack_turbine.sounds[0].name != 'jetpack:jetpack_turbine'
+                    || soundJson.jetpack_turbine.sounds[0].attenuation_distance != 24
+                    || soundJson.jetpack_turbine.sounds[0].stream == true) {
                 throw new GradleException('Invalid jetpack turbine sound registration in sounds.json')
             }
             def oggInput = archive.getInputStream(archive.getEntry(soundPath))
@@ -154,7 +190,7 @@ tasks.register('verifyModJarAssets') {
             } finally {
                 oggInput.close()
             }
-            logger.lifecycle("Verified pack.mcmeta, six item models, six transparent PNG textures, and turbine sound in ${jarFile.name}")
+            logger.lifecycle("Verified pack.mcmeta, six item models, six recolored icons with the wooden alpha mask, and turbine sound in ${jarFile.name}")
         } finally {
             archive.close()
         }

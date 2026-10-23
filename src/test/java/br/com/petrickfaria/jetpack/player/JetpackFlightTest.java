@@ -120,6 +120,17 @@ class JetpackFlightTest {
     }
 
     @Test
+    void thrustSoundFollowsPoweredFlightAndOnlyPoweredAirborneShiftDescent() {
+        assertEquals(true, JetpackFlight.shouldPlayThrustSound(true, true, false, false));
+        assertEquals(true, JetpackFlight.shouldPlayThrustSound(true, true, false, true));
+        assertEquals(false, JetpackFlight.shouldPlayThrustSound(true, false, false, false));
+        assertEquals(true, JetpackFlight.shouldPlayThrustSound(false, true, true, false));
+        assertEquals(false, JetpackFlight.shouldPlayThrustSound(false, true, true, true));
+        assertEquals(false, JetpackFlight.shouldPlayThrustSound(false, false, true, false));
+        assertEquals(false, JetpackFlight.shouldPlayThrustSound(false, true, false, false));
+    }
+
+    @Test
     void controlledDescentHorizontalDeltaMatchesCreativeFlightForCardinalAndDiagonalInput() {
         double drag = (double) 0.91F;
         double airborneInput = (double) (0.02F * 0.3F);

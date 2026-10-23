@@ -121,12 +121,10 @@ public final class JetpackFlight {
         }
         if (state.getBoolean("active")) tickPoweredFlight(player, state);
         else tickControlledDescent(player, state);
-        boolean hasInput = state.getBoolean("up") || state.getBoolean("down")
-                || state.getFloat("strafe") != 0.0F || state.getFloat("forward") != 0.0F;
         boolean active = state.getBoolean("active");
-        boolean thrusting = active && (hasInput || state.getBoolean("terrainCorrection"))
-                || !active && state.getBoolean("down") && !player.isOnGround();
-        thrusting &= equippedPack(player).energy > 0;
+        boolean hasEnergy = equippedPack(player).energy > 0;
+        boolean thrusting = shouldPlayThrustSound(active, hasEnergy,
+                state.getBoolean("down"), player.isOnGround());
         syncThrustSound(player, state, thrusting);
     }
 
@@ -261,6 +259,12 @@ public final class JetpackFlight {
 
     public static boolean shouldStopOnLanding(boolean shiftDown, boolean onGround) {
         return shiftDown && onGround;
+    }
+
+    /** Sound follows powered flight even while hovering, or the powered fall assist while airborne. */
+    public static boolean shouldPlayThrustSound(boolean flightActive, boolean hasEnergy,
+                                                 boolean shiftDown, boolean onGround) {
+        return hasEnergy && (flightActive || (shiftDown && !onGround));
     }
 
     /** Correct a one-step overshoot; larger gaps are terrain changes and descend gradually. */

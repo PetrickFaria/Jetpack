@@ -3,7 +3,7 @@
     "sounds": [
       {
         "name": "jetpack:jetpack_turbine",
-        "stream": true
+        "attenuation_distance": 24
       }
     ]
   }
