@@ -25,7 +25,6 @@ import com.mojang.math.Vector3f;
 public final class JetpackFlight {
     private static final String FLIGHT_KEY = "jetpack_flight";
     private static final int SURFACE_SEARCH_DEPTH = 128;
-    public static final int POWERED_ENERGY_PER_TICK = 1;
     public static final double CEILING_POSITION_TOLERANCE = 0.2D;
     private static final double SLOW_DESCENT_SPEED = 0.025D;
     // Player.travel applies the 0.3 crouch input multiplier before airborne travel.
@@ -195,7 +194,7 @@ public final class JetpackFlight {
         }
 
         var pack = JetpackEquipment.get(player);
-        if (JetpackItem.consume(pack, POWERED_ENERGY_PER_TICK, false) != POWERED_ENERGY_PER_TICK) {
+        if (!JetpackItem.consumeFlightTick(pack)) {
             JetpackEquipment.save(player, pack);
             stop(player, state);
             return;
@@ -215,7 +214,7 @@ public final class JetpackFlight {
         Vec3 adjusted = controlledDescentMotion(motion, true, false,
                 state.getFloat("strafe"), state.getFloat("forward"), player.getYRot());
         player.setDeltaMovement(adjusted);
-        if (JetpackItem.consume(pack, 1, false) == 1) {
+        if (JetpackItem.consumeFlightTick(pack)) {
             JetpackEquipment.save(player, pack);
             player.fallDistance = 0;
         }

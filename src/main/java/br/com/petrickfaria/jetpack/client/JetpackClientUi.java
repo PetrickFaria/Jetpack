@@ -28,14 +28,28 @@ public final class JetpackClientUi {
         int x = left - 10;
         int y = top + 26;
         var pose = event.getPoseStack();
-        // A vanilla-like recessed slot beside the chestplate slot.
-        GuiComponent.fill(pose, x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0xFF373737);
-        GuiComponent.fill(pose, x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0xFF8B8B8B);
-        GuiComponent.fill(pose, x + 2, y + 2, x + SLOT_SIZE - 2, y + SLOT_SIZE - 2, 0xFF3F3F3F);
+        // Keep the approved slot bounds/position while giving its inset a subtle
+        // steel bevel and a tiny redstone-burner mark when it is empty.
+        GuiComponent.fill(pose, x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0xFF171A1D);
+        GuiComponent.fill(pose, x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0xFF91999C);
+        GuiComponent.fill(pose, x + 1, y + SLOT_SIZE - 2, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0xFF292D30);
+        GuiComponent.fill(pose, x + 2, y + 2, x + SLOT_SIZE - 2, y + SLOT_SIZE - 2, 0xFF34383B);
+        GuiComponent.fill(pose, x + 3, y + 3, x + SLOT_SIZE - 3, y + SLOT_SIZE - 3, 0xFF3F3F3F);
+        GuiComponent.fill(pose, x + 3, y + 3, x + SLOT_SIZE - 3, y + 4, 0xFF575B5D);
+        GuiComponent.fill(pose, x + 3, y + SLOT_SIZE - 4, x + SLOT_SIZE - 3, y + SLOT_SIZE - 3, 0xFF7A2422);
         ItemStack pack = JetpackClientState.getEquipment(mc.player.getId());
         if (!pack.isEmpty()) {
             mc.getItemRenderer().renderAndDecorateItem(pack, x + 1, y + 1);
             mc.getItemRenderer().renderGuiItemDecorations(mc.font, pack, x + 1, y + 1);
+        } else {
+            // Low-contrast twin thrusters identify the auxiliary equipment slot
+            // without competing with the vanilla armor slots around it.
+            GuiComponent.fill(pose, x + 5, y + 6, x + 8, y + 12, 0xFF252A2D);
+            GuiComponent.fill(pose, x + 10, y + 6, x + 13, y + 12, 0xFF252A2D);
+            GuiComponent.fill(pose, x + 6, y + 6, x + 7, y + 10, 0xFF81898C);
+            GuiComponent.fill(pose, x + 11, y + 6, x + 12, y + 10, 0xFF81898C);
+            GuiComponent.fill(pose, x + 8, y + 8, x + 10, y + 11, 0xFF782321);
+            GuiComponent.fill(pose, x + 8, y + 8, x + 9, y + 9, 0xFFB83A32);
         }
     }
 
@@ -105,10 +119,20 @@ public final class JetpackClientUi {
         var pose = event.getPoseStack();
         drawOutlinedText(mc, pose, "Jetpack:", x, y);
         int barY = y + 12;
-        GuiComponent.fill(pose, x, barY, x + 96, barY + 10, 0xFF202020);
-        GuiComponent.fill(pose, x + 1, barY + 1, x + 95, barY + 9, 0xFF7A1010);
+        GuiComponent.fill(pose, x - 1, barY - 1, x + 97, barY + 11, 0xFF15191D);
+        GuiComponent.fill(pose, x, barY, x + 96, barY + 10, 0xFF9AA1A3);
+        GuiComponent.fill(pose, x + 1, barY + 1, x + 95, barY + 9, 0xFF272C30);
+        GuiComponent.fill(pose, x + 2, barY + 2, x + 94, barY + 8, 0xFF681719);
         int fill = Math.round(92 * fraction);
-        if (fill > 0) GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 8, 0xFFE53935);
+        if (fill > 0) {
+            GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 8, 0xFFCF2929);
+            GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 3, 0xFFFF7A70);
+            GuiComponent.fill(pose, x + 2, barY + 7, x + 2 + fill, barY + 8, 0xFF9E1C21);
+        }
+        for (int tick = 1; tick < 10; tick++) {
+            int tickX = x + 2 + tick * 9;
+            if (tickX < x + 2 + fill) GuiComponent.fill(pose, tickX, barY + 3, tickX + 1, barY + 7, 0xFF762020);
+        }
         drawOutlinedText(mc, pose, Math.round(fraction * 100) + "%", x + 101, barY + 1);
     }
 

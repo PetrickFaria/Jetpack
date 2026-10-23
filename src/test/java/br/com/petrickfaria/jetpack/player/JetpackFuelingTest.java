@@ -53,16 +53,32 @@ class JetpackFuelingTest {
     }
 
     @Test
-    void fullPackProvidesExactlyFiveMinutesAtTwentyTicksPerSecond() {
-        assertEquals(6000, JetpackItem.CAPACITY / JetpackFlight.POWERED_ENERGY_PER_TICK);
-        int remaining = JetpackItem.CAPACITY;
-        int activeTicks = 0;
-        while (remaining > 0) {
-            remaining = Math.max(0, remaining - JetpackFlight.POWERED_ENERGY_PER_TICK);
-            activeTicks++;
+    void everyTierProvidesExactlyFifteenMinutesAtTwentyTicksPerSecond() {
+        String[] tiers = {"wood", "iron", "gold", "emerald", "diamond", "netherite"};
+        for (String tier : tiers) {
+            int remaining = JetpackItem.CAPACITY;
+            int remainder = 0;
+            int activeTicks = 0;
+            while (remaining > 0) {
+                JetpackItem.FlightDrainStep step = JetpackItem.nextFlightDrainStep(remainder);
+                remaining -= step.energyToConsume();
+                remainder = step.remainder();
+                activeTicks++;
+            }
+            assertEquals(18_000, activeTicks, tier);
+            assertEquals(900, activeTicks / 20, tier);
         }
-        assertEquals(6000, activeTicks);
-        assertEquals(300, activeTicks / 20);
+    }
+
+    @Test
+    void fractionalFlightDrainCarriesAcrossSeparatePoweredPeriods() {
+        JetpackItem.FlightDrainStep first = JetpackItem.nextFlightDrainStep(0);
+        JetpackItem.FlightDrainStep second = JetpackItem.nextFlightDrainStep(first.remainder());
+        JetpackItem.FlightDrainStep third = JetpackItem.nextFlightDrainStep(second.remainder());
+        assertEquals(0, first.energyToConsume());
+        assertEquals(0, second.energyToConsume());
+        assertEquals(1, third.energyToConsume());
+        assertEquals(0, third.remainder());
     }
 
     @Test

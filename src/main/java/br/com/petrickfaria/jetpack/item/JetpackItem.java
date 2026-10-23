@@ -23,11 +23,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraft.world.SimpleMenuProvider;
 
-/** Five minutes at one FE per tick; one coal supplies exactly 4% of a full charge. */
+/** Fifteen minutes per full charge, with fractional flight drain carried across ticks. */
 public class JetpackItem extends Item {
     public static final int CAPACITY = 6000;
     public static final int COAL_ENERGY = CAPACITY / 25;
+    public static final int FLIGHT_TICKS_PER_FE = 3;
     public static final String INSTANCE_ID = "JetpackInstance";
+    private static final String FLIGHT_DRAIN_REMAINDER = "JetpackFlightDrainRemainder";
     private final int maximumHeight;
 
     public JetpackItem(int maximumHeight, Properties properties) {
@@ -71,6 +73,31 @@ public class JetpackItem extends Item {
     public static int consume(ItemStack stack, int amount, boolean simulate) {
         return stack.getCapability(CapabilityEnergy.ENERGY).map(e -> e.extractEnergy(amount, simulate)).orElse(0);
     }
+
+    /**
+     * Pays one third of an FE for each powered tick while retaining whole-FE Forge Energy storage.
+     * The small remainder is stored on the item, so flight duration is stable across pauses/reloads.
+     */
+    public static boolean consumeFlightTick(ItemStack stack) {
+        if (!(stack.getItem() instanceof JetpackItem) || energy(stack) <= 0) return false;
+        CompoundTag tag = stack.getOrCreateTag();
+        FlightDrainStep step = nextFlightDrainStep(tag.getInt(FLIGHT_DRAIN_REMAINDER));
+        if (step.energyToConsume() > 0 && consume(stack, step.energyToConsume(), false) != step.energyToConsume())
+            return false;
+        tag.putInt(FLIGHT_DRAIN_REMAINDER, step.remainder());
+        return true;
+    }
+
+    /** Pure tick arithmetic shared by flight consumption and its regression tests. */
+    public static FlightDrainStep nextFlightDrainStep(int currentRemainder) {
+        int normalized = Math.floorMod(currentRemainder, FLIGHT_TICKS_PER_FE);
+        int next = normalized + 1;
+        return next == FLIGHT_TICKS_PER_FE
+                ? new FlightDrainStep(1, 0)
+                : new FlightDrainStep(0, next);
+    }
+
+    public record FlightDrainStep(int energyToConsume, int remainder) {}
 
     private static final class EnergyProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
         private final ItemStack stack;
