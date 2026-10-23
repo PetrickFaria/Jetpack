@@ -18,17 +18,15 @@ class JetpackFlightTest {
     }
 
     @Test
-    void shiftDescentIsSlowAndPreservesHorizontalControl() {
+    void poweredShiftDescentUsesVanillaMotionWithoutChangingHorizontalControl() {
         Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.12D, 0.0D, -0.08D), true, false, 30.0D, 50.0D);
-        assertEquals(0.12D, adjusted.x, 1.0E-9D);
-        assertEquals(-0.025D, adjusted.y, 1.0E-9D);
-        assertEquals(-0.08D, adjusted.z, 1.0E-9D);
+        assertEquals(new Vec3(0.12D, 0.0D, -0.08D), adjusted);
     }
 
     @Test
-    void shiftDescentCapsExistingFastFall() {
+    void poweredShiftDescentDoesNotOverrideNativeVerticalSpeed() {
         Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.0D, -0.3D, 0.0D), true, false, 30.0D, 50.0D);
-        assertEquals(-0.025D, adjusted.y, 1.0E-9D);
+        assertEquals(-0.3D, adjusted.y, 1.0E-9D);
     }
 
     @Test

@@ -23,8 +23,10 @@ class JetpackFuelingTest {
     }
 
     @Test
-    void coalBurnProducesExactlyTenPercentOfCapacity() {
-        assertEquals(600.0D, JetpackFueling.energyForBurnTicks(1600), 0.000001D);
+    void coalBurnProducesExactlyFourPercentOfCapacity() {
+        assertEquals(240.0D, JetpackFueling.energyForBurnTicks(1600), 0.000001D);
+        assertEquals(240.0D, (double) JetpackItem.COAL_ENERGY, 0.000001D);
+        assertEquals(4.0D, JetpackItem.COAL_ENERGY * 100.0D / JetpackItem.CAPACITY, 0.0D);
     }
 
     @Test
@@ -34,14 +36,14 @@ class JetpackFuelingTest {
     }
 
     @Test
-    void coalSuppliesAFullJetpackInExactlyTwoHundredTicks() {
+    void twentyFiveCoalSupplyAFullJetpackInExactlyTwoHundredTicks() {
         double charged = 0.0D;
         int ticks = 0;
-        for (int coal = 0; coal < 10; coal++) {
+        for (int coal = 0; coal < 25; coal++) {
             int left = 1600;
             while (left > 0) {
-                charged += JetpackFueling.energyForGameTick(600.0D, 1600, left);
-                left -= Math.min(80, left);
+                charged += JetpackFueling.energyForGameTick(240.0D, 1600, left);
+                left -= Math.min(JetpackFueling.BURN_TICKS_PER_GAME_TICK, left);
                 ticks++;
             }
         }
@@ -50,30 +52,43 @@ class JetpackFuelingTest {
     }
 
     @Test
-    void halfChargeTakesOneHundredTicksWithFiveCoal() {
+    void fullPackProvidesExactlyFiveMinutesAtTwentyTicksPerSecond() {
+        assertEquals(6000, JetpackItem.CAPACITY / JetpackFlight.POWERED_ENERGY_PER_TICK);
+        int remaining = JetpackItem.CAPACITY;
+        int activeTicks = 0;
+        while (remaining > 0) {
+            remaining = Math.max(0, remaining - JetpackFlight.POWERED_ENERGY_PER_TICK);
+            activeTicks++;
+        }
+        assertEquals(6000, activeTicks);
+        assertEquals(300, activeTicks / 20);
+    }
+
+    @Test
+    void twentyPercentChargeTakesFortyTicksWithFiveCoal() {
         double charged = 0.0D;
         int ticks = 0;
         for (int coal = 0; coal < 5; coal++) {
             int left = 1600;
             while (left > 0) {
-                charged += JetpackFueling.energyForGameTick(600.0D, 1600, left);
-                left -= Math.min(80, left);
+                charged += JetpackFueling.energyForGameTick(240.0D, 1600, left);
+                left -= Math.min(JetpackFueling.BURN_TICKS_PER_GAME_TICK, left);
                 ticks++;
             }
         }
-        assertEquals(100, ticks);
-        assertEquals(3000.0D, charged, 0.000001D);
+        assertEquals(40, ticks);
+        assertEquals(1200.0D, charged, 0.000001D);
     }
 
     @Test
     void partialFuelOnlyDeliversItsProportionalEnergy() {
         double delivered = 0.0D;
-        int left = 800;
+        int left = 1600;
         while (left > 0) {
-            delivered += JetpackFueling.energyForGameTick(300.0D, 800, left);
-            left -= Math.min(80, left);
+            delivered += JetpackFueling.energyForGameTick(240.0D, 1600, left);
+            left -= Math.min(JetpackFueling.BURN_TICKS_PER_GAME_TICK, left);
         }
-        assertEquals(300.0D, delivered, 0.000001D);
+        assertEquals(240.0D, delivered, 0.000001D);
     }
 
     @Test

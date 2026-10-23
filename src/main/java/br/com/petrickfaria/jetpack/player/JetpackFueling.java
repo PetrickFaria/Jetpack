@@ -27,7 +27,9 @@ public final class JetpackFueling {
     private static final String BURN_VALUE = "JetpackBurnEnergy";
     private static final String BURN_FRACTION = "JetpackBurnFraction";
     private static final double FE_PER_BURN_TICK = JetpackItem.COAL_ENERGY / 1600.0D;
-    private static final int BURN_TICKS_PER_GAME_TICK = 80;
+    // 1600 furnace burn ticks per coal are processed across 8 game ticks.
+    // This makes 25 coals charge 6000 FE in 200 ticks (10 seconds at 20 TPS).
+    static final int BURN_TICKS_PER_GAME_TICK = 200;
 
     public static double energyForBurnTicks(int burnTicks) {
         return Math.max(0, burnTicks) * FE_PER_BURN_TICK;
@@ -139,7 +141,11 @@ public final class JetpackFueling {
             if (fuel.isEmpty()) tag.remove(FUEL_TAG);
             else tag.put(FUEL_TAG, fuel.save(new CompoundTag()));
             left = total = burnTicks;
-            budget = Math.min(JetpackItem.CAPACITY - JetpackItem.energy(host), energyForBurnTicks(burnTicks));
+            // Keep the whole fuel value as pending burn energy. If the pack fills
+            // partway through a coal, the remaining burn and fractional ER stay on
+            // the item and resume after energy is used; the fuel is never silently
+            // discarded at the capacity boundary.
+            budget = energyForBurnTicks(burnTicks);
         }
 
         int consumedBurnTicks = Math.min(BURN_TICKS_PER_GAME_TICK, left);

@@ -25,8 +25,10 @@ import com.mojang.math.Vector3f;
 public final class JetpackFlight {
     private static final String FLIGHT_KEY = "jetpack_flight";
     private static final int SURFACE_SEARCH_DEPTH = 128;
+    public static final int POWERED_ENERGY_PER_TICK = 1;
     private static final double SLOW_DESCENT_SPEED = 0.025D;
     private static final double TERRAIN_CORRECTION_SPEED = 0.08D;
+    // Vanilla Abilities initializes Creative flight to 0.05F; use the same speed value.
     private static final float CREATIVE_FLY_SPEED = 0.05F;
     private static final DustParticleOptions RED_THRUST =
             new DustParticleOptions(new Vector3f(0.95F, 0.025F, 0.015F), 0.8F);
@@ -64,11 +66,9 @@ public final class JetpackFlight {
         state.putBoolean("previousMayfly", abilities.mayfly);
         state.putBoolean("previousFlying", abilities.flying);
         state.putFloat("previousFlySpeed", abilities.getFlyingSpeed());
-        state.putBoolean("previousSprinting", player.isSprinting());
         abilities.mayfly = true;
         abilities.flying = true;
         abilities.setFlyingSpeed(CREATIVE_FLY_SPEED);
-        player.setSprinting(false);
         player.onUpdateAbilities();
         player.fallDistance = 0;
         JetpackNetwork.syncFlightState(player, true, altitudeCeiling(surface, pack.item.maximumHeight()));
@@ -90,7 +90,6 @@ public final class JetpackFlight {
             abilities.mayfly = state.getBoolean("previousMayfly");
             abilities.flying = state.getBoolean("previousFlying") && abilities.mayfly;
             abilities.setFlyingSpeed(state.getFloat("previousFlySpeed"));
-            player.setSprinting(state.getBoolean("previousSprinting"));
         }
         if (player instanceof ServerPlayer serverPlayer) {
             serverPlayer.onUpdateAbilities();
@@ -142,7 +141,7 @@ public final class JetpackFlight {
         if (!constrained.equals(motion)) player.setDeltaMovement(constrained);
 
         var pack = JetpackEquipment.get(player);
-        if (JetpackItem.consume(pack, 1, false) != 1) {
+        if (JetpackItem.consume(pack, POWERED_ENERGY_PER_TICK, false) != POWERED_ENERGY_PER_TICK) {
             JetpackEquipment.save(player, pack);
             stop(player, state);
             return;
@@ -173,7 +172,9 @@ public final class JetpackFlight {
 
     public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround, double y, double ceiling) {
         if (onGround) return motion;
-        if (down) return controlledDescentMotion(motion, true, false);
+        // While powered flight is active, vanilla applies jump/sneak input and the
+        // ability flying speed. Do not replace Creative's native descent with the
+        // separate slow-descent assist used after powered flight is switched off.
         if (y > ceiling) {
             // A newly lower terrain surface lowers the cap gradually, without teleporting the player.
             return new Vec3(motion.x, Mth.clamp(motion.y, -TERRAIN_CORRECTION_SPEED, -SLOW_DESCENT_SPEED), motion.z);

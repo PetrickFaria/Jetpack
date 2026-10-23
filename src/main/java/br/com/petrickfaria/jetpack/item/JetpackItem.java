@@ -23,10 +23,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraft.world.SimpleMenuProvider;
 
-/** Five minutes at one FE per tick; one coal (1600 burn ticks) supplies exactly 10%. */
+/** Five minutes at one FE per tick; one coal supplies exactly 4% of a full charge. */
 public class JetpackItem extends Item {
     public static final int CAPACITY = 6000;
-    public static final int COAL_ENERGY = CAPACITY / 10;
+    public static final int COAL_ENERGY = CAPACITY / 25;
     public static final String INSTANCE_ID = "JetpackInstance";
     private final int maximumHeight;
 
