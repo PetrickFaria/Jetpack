@@ -47,12 +47,17 @@ class JetpackFlightTest {
     void creativeAscentSpeedMatchesTheSteadyDisplacementProducedByVanillaJumpInput() {
         double flyingSpeed = (double) 0.05F;
         double verticalVelocity = 0.0D;
+        double ascentY = 0.0D;
+        double previousAscentY = 0.0D;
         double observedAscentDisplacement = 0.0D;
         for (int tick = 0; tick < 100; tick++) {
             // LocalPlayer adds 3 * flyingSpeed while Space is held. Player.travel
             // moves using that velocity, then retains 60% for the next tick.
-            observedAscentDisplacement = verticalVelocity + flyingSpeed * 3.0D;
-            verticalVelocity = observedAscentDisplacement * 0.6D;
+            double movementThisTick = verticalVelocity + flyingSpeed * 3.0D;
+            ascentY += movementThisTick;
+            observedAscentDisplacement = ascentY - previousAscentY;
+            previousAscentY = ascentY;
+            verticalVelocity = movementThisTick * 0.6D;
         }
         assertEquals(observedAscentDisplacement,
                 JetpackFlight.creativeSteadyAscentSpeed(flyingSpeed), 1.0E-12D);
@@ -74,8 +79,10 @@ class JetpackFlightTest {
             Vec3 adjusted = JetpackFlight.constrainFlightMotion(
                     new Vec3(0.1D, 0.0D, -0.1D), false, false, y, ceiling,
                     observedAscentDisplacement);
-            // Entity movement applies the assigned vertical component to position this tick.
-            double descentDisplacement = adjusted.y;
+            // Simulate the next entity move and compare actual Y deltas, rather than
+            // comparing a speed constant or only the velocity passed to the helper.
+            double nextY = y + adjusted.y;
+            double descentDisplacement = nextY - y;
             assertEquals(-observedAscentDisplacement, descentDisplacement, 1.0E-12D,
                     "tier " + maximumHeight);
             assertEquals(0.1D, adjusted.x, 0.0D);
