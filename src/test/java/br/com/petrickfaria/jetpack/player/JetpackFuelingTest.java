@@ -3,6 +3,7 @@ package br.com.petrickfaria.jetpack.player;
 import org.junit.jupiter.api.Test;
 import net.minecraft.resources.ResourceLocation;
 import br.com.petrickfaria.jetpack.item.JetpackItem;
+import br.com.petrickfaria.jetpack.item.JetpackEnergyDrain;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -60,7 +61,7 @@ class JetpackFuelingTest {
             int remainder = 0;
             int activeTicks = 0;
             while (remaining > 0) {
-                JetpackItem.FlightDrainStep step = JetpackItem.nextFlightDrainStep(remainder);
+                JetpackEnergyDrain.Step step = JetpackEnergyDrain.nextStep(remainder);
                 remaining -= step.energyToConsume();
                 remainder = step.remainder();
                 activeTicks++;
@@ -72,9 +73,9 @@ class JetpackFuelingTest {
 
     @Test
     void fractionalFlightDrainCarriesAcrossSeparatePoweredPeriods() {
-        JetpackItem.FlightDrainStep first = JetpackItem.nextFlightDrainStep(0);
-        JetpackItem.FlightDrainStep second = JetpackItem.nextFlightDrainStep(first.remainder());
-        JetpackItem.FlightDrainStep third = JetpackItem.nextFlightDrainStep(second.remainder());
+        JetpackEnergyDrain.Step first = JetpackEnergyDrain.nextStep(0);
+        JetpackEnergyDrain.Step second = JetpackEnergyDrain.nextStep(first.remainder());
+        JetpackEnergyDrain.Step third = JetpackEnergyDrain.nextStep(second.remainder());
         assertEquals(0, first.energyToConsume());
         assertEquals(0, second.energyToConsume());
         assertEquals(1, third.energyToConsume());

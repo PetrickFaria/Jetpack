@@ -27,7 +27,6 @@ import net.minecraft.world.SimpleMenuProvider;
 public class JetpackItem extends Item {
     public static final int CAPACITY = 6000;
     public static final int COAL_ENERGY = CAPACITY / 25;
-    public static final int FLIGHT_TICKS_PER_FE = 3;
     public static final String INSTANCE_ID = "JetpackInstance";
     private static final String FLIGHT_DRAIN_REMAINDER = "JetpackFlightDrainRemainder";
     private final int maximumHeight;
@@ -81,23 +80,12 @@ public class JetpackItem extends Item {
     public static boolean consumeFlightTick(ItemStack stack) {
         if (!(stack.getItem() instanceof JetpackItem) || energy(stack) <= 0) return false;
         CompoundTag tag = stack.getOrCreateTag();
-        FlightDrainStep step = nextFlightDrainStep(tag.getInt(FLIGHT_DRAIN_REMAINDER));
+        JetpackEnergyDrain.Step step = JetpackEnergyDrain.nextStep(tag.getInt(FLIGHT_DRAIN_REMAINDER));
         if (step.energyToConsume() > 0 && consume(stack, step.energyToConsume(), false) != step.energyToConsume())
             return false;
         tag.putInt(FLIGHT_DRAIN_REMAINDER, step.remainder());
         return true;
     }
-
-    /** Pure tick arithmetic shared by flight consumption and its regression tests. */
-    public static FlightDrainStep nextFlightDrainStep(int currentRemainder) {
-        int normalized = Math.floorMod(currentRemainder, FLIGHT_TICKS_PER_FE);
-        int next = normalized + 1;
-        return next == FLIGHT_TICKS_PER_FE
-                ? new FlightDrainStep(1, 0)
-                : new FlightDrainStep(0, next);
-    }
-
-    public record FlightDrainStep(int energyToConsume, int remainder) {}
 
     private static final class EnergyProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
         private final ItemStack stack;
