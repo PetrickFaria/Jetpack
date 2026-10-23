@@ -28,13 +28,18 @@ public final class JetpackFlight {
     public static final int POWERED_ENERGY_PER_TICK = 1;
     public static final double CEILING_POSITION_TOLERANCE = 0.2D;
     private static final double SLOW_DESCENT_SPEED = 0.025D;
-    // Vanilla Abilities initializes Creative flight to 0.05F; use the same speed value.
+    // Vanilla LocalPlayer adds 3 * flyingSpeed to vertical motion while jump is held.
+    // Creative Player.travel retains 60% of that motion after moving, so sustained
+    // ascent displacement converges to input / (1 - 0.6).
+    private static final double CREATIVE_VERTICAL_INPUT_MULTIPLIER = 3.0D;
+    private static final double CREATIVE_VERTICAL_RETAINED_SPEED = 0.6D;
     private static final float CREATIVE_FLY_SPEED = 0.05F;
     private static final DustParticleOptions RED_THRUST =
             new DustParticleOptions(new Vector3f(0.95F, 0.025F, 0.015F), 0.8F);
 
     public static void handleInput(ServerPlayer player, boolean toggle, boolean up, boolean down, float strafe, float forward) {
         var state = state(player);
+        state.putBoolean("up", up);
         state.putBoolean("down", down);
         // The client sends one toggle only after its double-tap detector fires.
         // Do not independently time the same taps on the server: packet timing can
@@ -58,6 +63,7 @@ public final class JetpackFlight {
         state.putDouble("ceiling", altitudeCeiling(surface, pack.item.maximumHeight()));
         state.putDouble("syncedCeiling", altitudeCeiling(surface, pack.item.maximumHeight()));
         state.putDouble("lastFlightY", player.getY());
+        state.putDouble("ascentSpeed", 0.0D);
         state.putBoolean("terrainCorrection", player.getY() > altitudeCeiling(surface, pack.item.maximumHeight()));
         state.putBoolean("active", true);
         state.putBoolean("previousMayfly", abilities.mayfly);
@@ -120,6 +126,28 @@ public final class JetpackFlight {
             return;
         }
 
+        double previousY = state.getDouble("lastFlightY");
+        boolean hasPreviousY = state.contains("lastFlightY");
+        double previousCeiling = state.getDouble("ceiling");
+        boolean hadCeiling = state.contains("ceiling");
+
+        // Measure the actual ascent displacement after vanilla has moved the player.
+        // This includes the jump impulse, retained vertical momentum, tick ordering,
+        // and any server-side movement processing instead of assuming flySpeed is distance.
+        double currentY = player.getY();
+        boolean newlyLoweredTerrain = state.getBoolean("terrainCorrection");
+        if (hadCeiling && state.contains("surfaceY") && Double.isFinite(currentY)
+                && state.getBoolean("up") && !state.getBoolean("down") && !player.isOnGround()
+                && hasPreviousY && !newlyLoweredTerrain
+                && previousY < previousCeiling - CEILING_POSITION_TOLERANCE
+                && currentY > previousY + 1.0E-4D
+                && currentY < previousCeiling - CEILING_POSITION_TOLERANCE) {
+            double measuredAscent = currentY - previousY;
+            double nativeSteadyAscent = creativeSteadyAscentSpeed(player.getAbilities().getFlyingSpeed());
+            state.putDouble("ascentSpeed", Math.max(state.getDouble("ascentSpeed"),
+                    Math.min(measuredAscent, nativeSteadyAscent)));
+        }
+
         // Sample the support directly below the player. It follows terrain rather than the takeoff Y.
         double sampledSurface = findSurfaceBelow(player);
         if (Double.isFinite(sampledSurface)) state.putDouble("surfaceY", sampledSurface);
@@ -129,8 +157,6 @@ public final class JetpackFlight {
             stop(player, state);
             return;
         }
-        double previousCeiling = state.getDouble("ceiling");
-        boolean hadCeiling = state.contains("ceiling");
         double ceiling = altitudeCeiling(surface, equipped.item.maximumHeight());
         if (hadCeiling && ceiling < previousCeiling - 1.0E-4D && player.getY() > ceiling)
             state.putBoolean("terrainCorrection", true);
@@ -143,7 +169,11 @@ public final class JetpackFlight {
         }
 
         Vec3 motion = player.getDeltaMovement();
-        Vec3 constrained = constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(), player.getY(), ceiling);
+        double ascentSpeed = state.getDouble("ascentSpeed");
+        if (ascentSpeed <= 0.0D)
+            ascentSpeed = creativeSteadyAscentSpeed(player.getAbilities().getFlyingSpeed());
+        Vec3 constrained = constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(),
+                player.getY(), ceiling, ascentSpeed);
         if (!constrained.equals(motion)) player.setDeltaMovement(constrained);
         enforceCeilingPosition(player, ceiling);
         if (player instanceof ServerPlayer serverPlayer) {
@@ -181,16 +211,27 @@ public final class JetpackFlight {
         return surfaceY + maximumHeight;
     }
 
-    public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround, double y, double ceiling) {
+    public static double creativeSteadyAscentSpeed(double flyingSpeed) {
+        double verticalInput = flyingSpeed * CREATIVE_VERTICAL_INPUT_MULTIPLIER;
+        return verticalInput / (1.0D - CREATIVE_VERTICAL_RETAINED_SPEED);
+    }
+
+    public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround,
+                                               double y, double ceiling) {
+        return constrainFlightMotion(motion, down, onGround, y, ceiling,
+                creativeSteadyAscentSpeed(CREATIVE_FLY_SPEED));
+    }
+
+    public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround,
+                                               double y, double ceiling, double ascentSpeed) {
         if (onGround) return motion;
-        // While powered flight is active, vanilla applies jump/sneak input and the
-        // ability flying speed. Do not replace Creative's native descent with the
-        // separate slow-descent assist used after powered flight is switched off.
+        // Do not replace Creative's native manual descent with the separate slow-descent
+        // assist used after powered flight is switched off.
         if (y > ceiling) {
-            // Match the automatic correction to normal Creative ascent. Limit the
-            // final step to the remaining gap so it stops at the terrain ceiling.
+            // ascentSpeed is a measured per-tick displacement, not flyingSpeed. The
+            // next travel step moves by this vertical component before retaining momentum.
             double remainingHeight = y - ceiling;
-            double correctionSpeed = Math.min(CREATIVE_FLY_SPEED, remainingHeight);
+            double correctionSpeed = Math.min(Math.max(0.0D, ascentSpeed), remainingHeight);
             return new Vec3(motion.x, -correctionSpeed, motion.z);
         }
         if (y >= ceiling - 1.0E-5D && motion.y > 0.0D) return new Vec3(motion.x, 0.0D, motion.z);
@@ -334,6 +375,7 @@ public final class JetpackFlight {
         stop(event.getEntity(), state(event.getEntity()));
         var state = state(event.getEntity());
         state.putBoolean("jumpPressed", false);
+        state.putBoolean("up", false);
         state.putBoolean("down", false);
     }
 

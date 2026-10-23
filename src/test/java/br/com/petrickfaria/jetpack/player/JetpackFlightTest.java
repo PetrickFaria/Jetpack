@@ -44,33 +44,64 @@ class JetpackFlightTest {
     }
 
     @Test
-    void lowerTerrainCorrectionMatchesCreativeAscentAndPreservesHorizontalMotion() {
-        Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, 0.25D, -0.1D), false, false, 75.0D, 70.0D);
-        assertEquals(0.1D, adjusted.x, 0.0D);
-        assertEquals(-(double) 0.05F, adjusted.y, 1.0E-9D);
-        assertEquals(-0.1D, adjusted.z, 0.0D);
+    void creativeAscentSpeedMatchesTheSteadyDisplacementProducedByVanillaJumpInput() {
+        double flyingSpeed = (double) 0.05F;
+        double verticalVelocity = 0.0D;
+        double observedAscentDisplacement = 0.0D;
+        for (int tick = 0; tick < 100; tick++) {
+            // LocalPlayer adds 3 * flyingSpeed while Space is held. Player.travel
+            // moves using that velocity, then retains 60% for the next tick.
+            observedAscentDisplacement = verticalVelocity + flyingSpeed * 3.0D;
+            verticalVelocity = observedAscentDisplacement * 0.6D;
+        }
+        assertEquals(observedAscentDisplacement,
+                JetpackFlight.creativeSteadyAscentSpeed(flyingSpeed), 1.0E-12D);
     }
 
     @Test
-    void lowerTerrainCorrectionUsesTheSameSpeedForEveryJetpackTier() {
+    void automaticDescentMatchesObservedCreativeAscentDisplacementForEveryTier() {
+        double flyingSpeed = (double) 0.05F;
+        double verticalVelocity = 0.0D;
+        double observedAscentDisplacement = 0.0D;
+        for (int tick = 0; tick < 100; tick++) {
+            observedAscentDisplacement = verticalVelocity + flyingSpeed * 3.0D;
+            verticalVelocity = observedAscentDisplacement * 0.6D;
+        }
+
         for (int maximumHeight : new int[] {5, 10, 15, 20, 25, 50}) {
             double ceiling = JetpackFlight.altitudeCeiling(64.0D, maximumHeight);
+            double y = ceiling + 2.0D;
             Vec3 adjusted = JetpackFlight.constrainFlightMotion(
-                    new Vec3(0.1D, 0.0D, -0.1D), false, false, ceiling + 2.0D, ceiling);
-            assertEquals(-(double) 0.05F, adjusted.y, 1.0E-9D, "tier " + maximumHeight);
+                    new Vec3(0.1D, 0.0D, -0.1D), false, false, y, ceiling,
+                    observedAscentDisplacement);
+            // Entity movement applies the assigned vertical component to position this tick.
+            double descentDisplacement = adjusted.y;
+            assertEquals(-observedAscentDisplacement, descentDisplacement, 1.0E-12D,
+                    "tier " + maximumHeight);
+            assertEquals(0.1D, adjusted.x, 0.0D);
+            assertEquals(-0.1D, adjusted.z, 0.0D);
         }
     }
 
     @Test
+    void correctionUsesMeasuredAscentRatherThanTheConfiguredFlySpeed() {
+        Vec3 adjusted = JetpackFlight.constrainFlightMotion(
+                new Vec3(0.0D, 0.0D, 0.0D), false, false, 75.0D, 70.0D, 0.36D);
+        assertEquals(-0.36D, adjusted.y, 0.0D);
+    }
+
+    @Test
     void finalTerrainCorrectionStepDoesNotOvershootTheCeiling() {
-        Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, 0.0D, -0.1D), false, false, 70.02D, 70.0D);
+        Vec3 adjusted = JetpackFlight.constrainFlightMotion(
+                new Vec3(0.1D, 0.0D, -0.1D), false, false, 70.02D, 70.0D, 0.375D);
         assertEquals(-0.02D, adjusted.y, 1.0E-9D);
     }
 
     @Test
-    void lowerTerrainCorrectionReplacesAnExistingFallWithCreativeSpeed() {
-        Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, -0.8D, -0.1D), false, false, 75.0D, 70.0D);
-        assertEquals(-(double) 0.05F, adjusted.y, 1.0E-9D);
+    void lowerTerrainCorrectionReplacesAnExistingFallWithMeasuredCreativeSpeed() {
+        Vec3 adjusted = JetpackFlight.constrainFlightMotion(
+                new Vec3(0.1D, -0.8D, -0.1D), false, false, 75.0D, 70.0D, 0.375D);
+        assertEquals(-0.375D, adjusted.y, 1.0E-9D);
     }
 
     @Test

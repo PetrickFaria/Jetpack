@@ -15,9 +15,11 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = JetpackMod.MOD_ID, value = Dist.CLIENT)
 public final class JetpackClientInput {
-    private static boolean previousJump, lastUp, lastDown;
+    private static boolean previousJump, lastUp, lastDown, previousFlightActive;
     private static float lastStrafe, lastForward;
     private static long previousJumpAt;
+    private static double lastFlightY = Double.NaN;
+    private static double measuredAscentSpeed;
 
     @SubscribeEvent
     public static void onMovementInput(MovementInputUpdateEvent event) {
@@ -43,12 +45,14 @@ public final class JetpackClientInput {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
             previousJump = false; lastUp = false; lastDown = false; lastStrafe = 0.0F; lastForward = 0.0F;
+            previousFlightActive = false; lastFlightY = Double.NaN; measuredAscentSpeed = 0.0D;
             return;
         }
         if (mc.screen != null) {
             if (lastUp || lastDown || lastStrafe != 0.0F || lastForward != 0.0F)
                 JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.FlightInput(false, false, false, 0.0F, 0.0F));
             previousJump = false; lastUp = false; lastDown = false; lastStrafe = 0.0F; lastForward = 0.0F;
+            lastFlightY = mc.player.getY();
             return;
         }
         boolean jump = mc.options.keyJump.isDown();
@@ -67,11 +71,32 @@ public final class JetpackClientInput {
 
         var flight = JetpackClientState.getFlight(mc.player.getId());
         if (flight.active()) {
+            double y = mc.player.getY();
+            if (previousFlightActive && Double.isFinite(lastFlightY) && up && !down
+                    && !mc.player.isOnGround()
+                    && lastFlightY < flight.ceiling() - JetpackFlight.CEILING_POSITION_TOLERANCE
+                    && y > lastFlightY + 1.0E-4D
+                    && y < flight.ceiling() - JetpackFlight.CEILING_POSITION_TOLERANCE) {
+                double measured = y - lastFlightY;
+                double nativeSteadyAscent = JetpackFlight.creativeSteadyAscentSpeed(
+                        mc.player.getAbilities().getFlyingSpeed());
+                measuredAscentSpeed = Math.max(measuredAscentSpeed, Math.min(measured, nativeSteadyAscent));
+            }
+            double ascentSpeed = measuredAscentSpeed > 0.0D ? measuredAscentSpeed
+                    : JetpackFlight.creativeSteadyAscentSpeed(mc.player.getAbilities().getFlyingSpeed());
             Vec3 motion = mc.player.getDeltaMovement();
-            Vec3 constrained = JetpackFlight.constrainFlightMotion(motion, down, mc.player.isOnGround(), mc.player.getY(), flight.ceiling());
+            Vec3 constrained = JetpackFlight.constrainFlightMotion(motion, down, mc.player.isOnGround(),
+                    y, flight.ceiling(), ascentSpeed);
             if (!constrained.equals(motion)) mc.player.setDeltaMovement(constrained);
             JetpackFlight.enforceCeilingPosition(mc.player, flight.ceiling());
-        } else if (down && !mc.player.isCreative() && !mc.player.isSpectator()) {
+            previousFlightActive = true;
+            lastFlightY = mc.player.getY();
+        } else {
+            previousFlightActive = false;
+            lastFlightY = Double.NaN;
+            measuredAscentSpeed = 0.0D;
+        }
+        if (!flight.active() && down && !mc.player.isCreative() && !mc.player.isSpectator()) {
             var pack = JetpackClientState.getEquipment(mc.player.getId());
             if (pack.getItem() instanceof JetpackItem && JetpackItem.energy(pack) > 0 && !mc.player.isOnGround()) {
                 Vec3 motion = mc.player.getDeltaMovement();
@@ -85,6 +110,7 @@ public final class JetpackClientInput {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         previousJump = false; lastUp = false; lastDown = false; lastStrafe = 0.0F; lastForward = 0.0F; previousJumpAt = 0L;
+        previousFlightActive = false; lastFlightY = Double.NaN; measuredAscentSpeed = 0.0D;
         JetpackClientState.clear();
     }
     private JetpackClientInput() {}
