@@ -2,6 +2,7 @@ package br.com.petrickfaria.jetpack.player;
 
 import org.junit.jupiter.api.Test;
 import net.minecraft.resources.ResourceLocation;
+import br.com.petrickfaria.jetpack.item.JetpackItem;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -97,3 +98,4 @@ class JetpackFuelingTest {
         assertEquals(0.0D, JetpackFueling.energyForBurnTicks(-20), 0.000001D);
     }
 }
+
