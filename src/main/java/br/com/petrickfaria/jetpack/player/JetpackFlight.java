@@ -28,7 +28,6 @@ public final class JetpackFlight {
     public static final int POWERED_ENERGY_PER_TICK = 1;
     public static final double CEILING_POSITION_TOLERANCE = 0.2D;
     private static final double SLOW_DESCENT_SPEED = 0.025D;
-    private static final double TERRAIN_CORRECTION_SPEED = 0.08D;
     // Vanilla Abilities initializes Creative flight to 0.05F; use the same speed value.
     private static final float CREATIVE_FLY_SPEED = 0.05F;
     private static final DustParticleOptions RED_THRUST =
@@ -188,9 +187,11 @@ public final class JetpackFlight {
         // ability flying speed. Do not replace Creative's native descent with the
         // separate slow-descent assist used after powered flight is switched off.
         if (y > ceiling) {
-            // A newly lower terrain ceiling descends gently; the server separately
-            // prevents any upward position change during this correction.
-            return new Vec3(motion.x, Mth.clamp(motion.y, -TERRAIN_CORRECTION_SPEED, -SLOW_DESCENT_SPEED), motion.z);
+            // Match the automatic correction to normal Creative ascent. Limit the
+            // final step to the remaining gap so it stops at the terrain ceiling.
+            double remainingHeight = y - ceiling;
+            double correctionSpeed = Math.min(CREATIVE_FLY_SPEED, remainingHeight);
+            return new Vec3(motion.x, -correctionSpeed, motion.z);
         }
         if (y >= ceiling - 1.0E-5D && motion.y > 0.0D) return new Vec3(motion.x, 0.0D, motion.z);
         return motion;

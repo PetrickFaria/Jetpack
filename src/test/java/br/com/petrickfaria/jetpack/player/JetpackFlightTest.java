@@ -44,17 +44,41 @@ class JetpackFlightTest {
     }
 
     @Test
-    void lowerTerrainAppliesAGentleDescentWithoutTeleportingMotion() {
+    void lowerTerrainCorrectionMatchesCreativeAscentAndPreservesHorizontalMotion() {
         Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, 0.25D, -0.1D), false, false, 75.0D, 70.0D);
         assertEquals(0.1D, adjusted.x, 0.0D);
-        assertEquals(-0.025D, adjusted.y, 0.0D);
+        assertEquals(-(double) 0.05F, adjusted.y, 1.0E-9D);
         assertEquals(-0.1D, adjusted.z, 0.0D);
     }
 
     @Test
-    void lowerTerrainCapsAnExistingFastFallToASafeRate() {
+    void lowerTerrainCorrectionUsesTheSameSpeedForEveryJetpackTier() {
+        for (int maximumHeight : new int[] {5, 10, 15, 20, 25, 50}) {
+            double ceiling = JetpackFlight.altitudeCeiling(64.0D, maximumHeight);
+            Vec3 adjusted = JetpackFlight.constrainFlightMotion(
+                    new Vec3(0.1D, 0.0D, -0.1D), false, false, ceiling + 2.0D, ceiling);
+            assertEquals(-(double) 0.05F, adjusted.y, 1.0E-9D, "tier " + maximumHeight);
+        }
+    }
+
+    @Test
+    void finalTerrainCorrectionStepDoesNotOvershootTheCeiling() {
+        Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, 0.0D, -0.1D), false, false, 70.02D, 70.0D);
+        assertEquals(-0.02D, adjusted.y, 1.0E-9D);
+    }
+
+    @Test
+    void lowerTerrainCorrectionReplacesAnExistingFallWithCreativeSpeed() {
         Vec3 adjusted = JetpackFlight.constrainFlightMotion(new Vec3(0.1D, -0.8D, -0.1D), false, false, 75.0D, 70.0D);
-        assertEquals(-0.08D, adjusted.y, 0.0D);
+        assertEquals(-(double) 0.05F, adjusted.y, 1.0E-9D);
+    }
+
+    @Test
+    void unpoweredControlledDescentSpeedRemainsUnchanged() {
+        Vec3 adjusted = JetpackFlight.controlledDescentMotion(new Vec3(0.1D, 0.4D, -0.1D), true, false);
+        assertEquals(0.1D, adjusted.x, 0.0D);
+        assertEquals(-0.025D, adjusted.y, 0.0D);
+        assertEquals(-0.1D, adjusted.z, 0.0D);
     }
 
     @Test
