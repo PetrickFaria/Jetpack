@@ -25,26 +25,26 @@ class JetpackFuelingTest {
     }
 
     @Test
-    void coalBurnProducesExactlyFourPercentOfCapacity() {
-        assertEquals(240.0D, JetpackFueling.energyForBurnTicks(1600), 0.000001D);
-        assertEquals(240.0D, (double) JetpackItem.COAL_ENERGY, 0.000001D);
-        assertEquals(4.0D, JetpackItem.COAL_ENERGY * 100.0D / JetpackItem.CAPACITY, 0.0D);
+    void coalBurnProducesExactlyFivePercentOfCapacity() {
+        assertEquals(300.0D, JetpackFueling.energyForBurnTicks(1600), 0.000001D);
+        assertEquals(300.0D, (double) JetpackItem.COAL_ENERGY, 0.000001D);
+        assertEquals(5.0D, JetpackItem.COAL_ENERGY * 100.0D / JetpackItem.CAPACITY, 0.0D);
     }
 
     @Test
     void otherFuelsScaleWithTheirBurnDuration() {
-        assertEquals(120.0D, JetpackFueling.energyForBurnTicks(800), 0.000001D);
-        assertEquals(15.0D, JetpackFueling.energyForBurnTicks(100), 0.000001D);
+        assertEquals(150.0D, JetpackFueling.energyForBurnTicks(800), 0.000001D);
+        assertEquals(18.75D, JetpackFueling.energyForBurnTicks(100), 0.000001D);
     }
 
     @Test
-    void twentyFiveCoalSupplyAFullJetpackInExactlyTwoHundredTicks() {
+    void twentyCoalSupplyAFullJetpackInExactlyTwoHundredTicks() {
         double charged = 0.0D;
         int ticks = 0;
-        for (int coal = 0; coal < 25; coal++) {
+        for (int coal = 0; coal < 20; coal++) {
             int left = 1600;
             while (left > 0) {
-                charged += JetpackFueling.energyForGameTick(240.0D, 1600, left);
+                charged += JetpackFueling.energyForGameTick(300.0D, 1600, left);
                 left -= Math.min(JetpackFueling.BURN_TICKS_PER_GAME_TICK, left);
                 ticks++;
             }
@@ -54,7 +54,7 @@ class JetpackFuelingTest {
     }
 
     @Test
-    void everyTierProvidesExactlyFifteenMinutesAtTwentyTicksPerSecond() {
+    void everyTierProvidesExactlyTenMinutesAtTwentyTicksPerSecond() {
         String[] tiers = {"wood", "iron", "gold", "emerald", "diamond", "netherite"};
         for (String tier : tiers) {
             int remaining = JetpackItem.CAPACITY;
@@ -66,8 +66,8 @@ class JetpackFuelingTest {
                 remainder = step.remainder();
                 activeTicks++;
             }
-            assertEquals(18_000, activeTicks, tier);
-            assertEquals(900, activeTicks / 20, tier);
+            assertEquals(12_000, activeTicks, tier);
+            assertEquals(600, activeTicks / 20, tier);
         }
     }
 
@@ -77,25 +77,32 @@ class JetpackFuelingTest {
         JetpackEnergyDrain.Step second = JetpackEnergyDrain.nextStep(first.remainder());
         JetpackEnergyDrain.Step third = JetpackEnergyDrain.nextStep(second.remainder());
         assertEquals(0, first.energyToConsume());
-        assertEquals(0, second.energyToConsume());
-        assertEquals(1, third.energyToConsume());
-        assertEquals(0, third.remainder());
+        assertEquals(1, second.energyToConsume());
+        assertEquals(0, second.remainder());
+        assertEquals(0, third.energyToConsume());
     }
 
     @Test
-    void twentyPercentChargeTakesFortyTicksWithFiveCoal() {
+    void previousFractionalRemaindersConvertExactlyToSixthFeUnits() {
+        assertEquals(0, JetpackEnergyDrain.fromLegacyRemainder(0));
+        assertEquals(2, JetpackEnergyDrain.fromLegacyRemainder(1));
+        assertEquals(4, JetpackEnergyDrain.fromLegacyRemainder(2));
+    }
+
+    @Test
+    void twentyFivePercentChargeTakesFiftyTicksWithFiveCoal() {
         double charged = 0.0D;
         int ticks = 0;
         for (int coal = 0; coal < 5; coal++) {
             int left = 1600;
             while (left > 0) {
-                charged += JetpackFueling.energyForGameTick(240.0D, 1600, left);
+                charged += JetpackFueling.energyForGameTick(300.0D, 1600, left);
                 left -= Math.min(JetpackFueling.BURN_TICKS_PER_GAME_TICK, left);
                 ticks++;
             }
         }
-        assertEquals(40, ticks);
-        assertEquals(1200.0D, charged, 0.000001D);
+        assertEquals(50, ticks);
+        assertEquals(1500.0D, charged, 0.000001D);
     }
 
     @Test
@@ -103,10 +110,10 @@ class JetpackFuelingTest {
         double delivered = 0.0D;
         int left = 1600;
         while (left > 0) {
-            delivered += JetpackFueling.energyForGameTick(240.0D, 1600, left);
+            delivered += JetpackFueling.energyForGameTick(300.0D, 1600, left);
             left -= Math.min(JetpackFueling.BURN_TICKS_PER_GAME_TICK, left);
         }
-        assertEquals(240.0D, delivered, 0.000001D);
+        assertEquals(300.0D, delivered, 0.000001D);
     }
 
     @Test

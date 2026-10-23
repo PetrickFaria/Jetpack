@@ -145,11 +145,11 @@ public final class JetpackClientUi {
 
     private static void drawOutlinedText(Minecraft mc, com.mojang.blaze3d.vertex.PoseStack pose,
                                          String text, int x, int y) {
-        mc.font.draw(pose, text, x - 1, y, 0xFFFFFFFF);
-        mc.font.draw(pose, text, x + 1, y, 0xFFFFFFFF);
-        mc.font.draw(pose, text, x, y - 1, 0xFFFFFFFF);
-        mc.font.draw(pose, text, x, y + 1, 0xFFFFFFFF);
-        mc.font.draw(pose, text, x, y, 0xFF000000);
+        mc.font.draw(pose, text, x - 1, y, 0xFF777777);
+        mc.font.draw(pose, text, x + 1, y, 0xFF777777);
+        mc.font.draw(pose, text, x, y - 1, 0xFF777777);
+        mc.font.draw(pose, text, x, y + 1, 0xFF777777);
+        mc.font.draw(pose, text, x, y, 0xFFFFFFFF);
     }
 
     @SubscribeEvent

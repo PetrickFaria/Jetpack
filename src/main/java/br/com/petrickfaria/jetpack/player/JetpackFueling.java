@@ -27,9 +27,9 @@ public final class JetpackFueling {
     private static final String BURN_VALUE = "JetpackBurnEnergy";
     private static final String BURN_FRACTION = "JetpackBurnFraction";
     private static final double FE_PER_BURN_TICK = JetpackItem.COAL_ENERGY / 1600.0D;
-    // 1600 furnace burn ticks per coal are processed across 8 game ticks.
-    // This makes 25 coals charge 6000 FE in 200 ticks (10 seconds at 20 TPS).
-    static final int BURN_TICKS_PER_GAME_TICK = 200;
+    // 1600 furnace burn ticks per coal are processed across 10 game ticks.
+    // Twenty coals charge 6000 FE in 200 ticks (10 seconds at 20 TPS).
+    static final int BURN_TICKS_PER_GAME_TICK = 160;
 
     public static double energyForBurnTicks(int burnTicks) {
         return Math.max(0, burnTicks) * FE_PER_BURN_TICK;

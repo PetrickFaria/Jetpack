@@ -23,20 +23,24 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraft.world.SimpleMenuProvider;
 
-/** Fifteen minutes per full charge, with fractional flight drain carried across ticks. */
+/** Ten minutes per full charge, with fractional flight drain carried across ticks. */
 public class JetpackItem extends Item {
     public static final int CAPACITY = 6000;
-    public static final int COAL_ENERGY = CAPACITY / 25;
+    public static final int COAL_ENERGY = CAPACITY / 20;
     public static final String INSTANCE_ID = "JetpackInstance";
     private static final String FLIGHT_DRAIN_REMAINDER = "JetpackFlightDrainRemainder";
+    private static final String FLIGHT_DRAIN_REMAINDER_V2 = "JetpackFlightDrainRemainderV2";
     private final int maximumHeight;
+    private final String materialName;
 
-    public JetpackItem(int maximumHeight, Properties properties) {
+    public JetpackItem(int maximumHeight, Properties properties, String materialName) {
         super(properties);
         this.maximumHeight = maximumHeight;
+        this.materialName = materialName;
     }
 
     public int maximumHeight() { return maximumHeight; }
+    public String materialName() { return materialName; }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
@@ -74,16 +78,20 @@ public class JetpackItem extends Item {
     }
 
     /**
-     * Pays one third of an FE for each powered tick while retaining whole-FE Forge Energy storage.
+     * Pays one half of an FE for each powered tick while retaining whole-FE Forge Energy storage.
      * The small remainder is stored on the item, so flight duration is stable across pauses/reloads.
      */
     public static boolean consumeFlightTick(ItemStack stack) {
         if (!(stack.getItem() instanceof JetpackItem) || energy(stack) <= 0) return false;
         CompoundTag tag = stack.getOrCreateTag();
-        JetpackEnergyDrain.Step step = JetpackEnergyDrain.nextStep(tag.getInt(FLIGHT_DRAIN_REMAINDER));
+        int remainder = tag.contains(FLIGHT_DRAIN_REMAINDER_V2)
+                ? tag.getInt(FLIGHT_DRAIN_REMAINDER_V2)
+                : JetpackEnergyDrain.fromLegacyRemainder(tag.getInt(FLIGHT_DRAIN_REMAINDER));
+        JetpackEnergyDrain.Step step = JetpackEnergyDrain.nextStep(remainder);
         if (step.energyToConsume() > 0 && consume(stack, step.energyToConsume(), false) != step.energyToConsume())
             return false;
-        tag.putInt(FLIGHT_DRAIN_REMAINDER, step.remainder());
+        tag.putInt(FLIGHT_DRAIN_REMAINDER_V2, step.remainder());
+        tag.remove(FLIGHT_DRAIN_REMAINDER);
         return true;
     }
 

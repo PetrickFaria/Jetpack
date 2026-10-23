@@ -19,31 +19,32 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
     protected void renderBg(PoseStack pose, float partialTick, int mouseX, int mouseY) {
         int x = this.leftPos;
         int y = this.topPos;
-        // Compact steel-and-redstone housing with a recessed work area.
-        fill(pose, x, y, x + imageWidth, y + imageHeight, 0xFF15191D);
-        fill(pose, x + 1, y + 1, x + imageWidth - 1, y + imageHeight - 1, 0xFF8A9297);
-        fill(pose, x + 2, y + 2, x + imageWidth - 2, y + imageHeight - 2, 0xFF292E33);
-        fill(pose, x + 4, y + 4, x + imageWidth - 4, y + imageHeight - 4, 0xFF393D40);
-        fill(pose, x + 5, y + 5, x + imageWidth - 5, y + 18, 0xFF24292E);
-        fill(pose, x + 5, y + 18, x + imageWidth - 5, y + 19, 0xFF9B302B);
-        fill(pose, x + 8, y + 21, x + imageWidth - 8, y + 67, 0xFF454747);
-        fill(pose, x + 8, y + 21, x + imageWidth - 8, y + 22, 0xFF737A7D);
-        fill(pose, x + 8, y + 67, x + imageWidth - 8, y + 68, 0xFF262A2D);
-        fill(pose, x + 5, y + 71, x + imageWidth - 5, y + 72, 0xFF777F83);
-        fill(pose, x + 5, y + 74, x + imageWidth - 5, y + imageHeight - 5, 0xFF303438);
-        fill(pose, x + 8, y + 77, x + imageWidth - 8, y + imageHeight - 6, 0xFF484744);
+        Palette palette = palette();
+        // Compact material-colored housing, following the supplied furnace-like layout.
+        fill(pose, x, y, x + imageWidth, y + imageHeight, palette.outer());
+        fill(pose, x + 1, y + 1, x + imageWidth - 1, y + imageHeight - 1, palette.rim());
+        fill(pose, x + 2, y + 2, x + imageWidth - 2, y + imageHeight - 2, palette.inset());
+        fill(pose, x + 4, y + 4, x + imageWidth - 4, y + imageHeight - 4, palette.surface());
+        fill(pose, x + 5, y + 5, x + imageWidth - 5, y + 28, palette.header());
+        fill(pose, x + 5, y + 28, x + imageWidth - 5, y + 29, palette.accent());
+        fill(pose, x + 8, y + 30, x + imageWidth - 8, y + 67, palette.panel());
+        fill(pose, x + 8, y + 30, x + imageWidth - 8, y + 31, palette.highlight());
+        fill(pose, x + 8, y + 67, x + imageWidth - 8, y + 68, palette.outer());
+        fill(pose, x + 5, y + 71, x + imageWidth - 5, y + 72, palette.rim());
+        fill(pose, x + 5, y + 74, x + imageWidth - 5, y + imageHeight - 5, palette.inset());
+        fill(pose, x + 8, y + 77, x + imageWidth - 8, y + imageHeight - 6, palette.panel());
 
         // Small corner fasteners and side rails keep the pixel-art framing crisp.
         for (int[] corner : new int[][] {{7, 7}, {imageWidth - 10, 7}, {7, imageHeight - 10}, {imageWidth - 10, imageHeight - 10}}) {
-            fill(pose, x + corner[0], y + corner[1], x + corner[0] + 2, y + corner[1] + 2, 0xFF92999B);
-            fill(pose, x + corner[0], y + corner[1] + 1, x + corner[0] + 2, y + corner[1] + 2, 0xFF50575B);
+            fill(pose, x + corner[0], y + corner[1], x + corner[0] + 2, y + corner[1] + 2, palette.highlight());
+            fill(pose, x + corner[0], y + corner[1] + 1, x + corner[0] + 2, y + corner[1] + 2, palette.accentDark());
         }
-        fill(pose, x + 25, y + 28, x + 27, y + 61, 0xFF353A3E);
-        fill(pose, x + imageWidth - 27, y + 28, x + imageWidth - 25, y + 61, 0xFF353A3E);
+        fill(pose, x + 25, y + 31, x + 27, y + 61, palette.accentDark());
+        fill(pose, x + imageWidth - 27, y + 31, x + imageWidth - 25, y + 61, palette.accentDark());
 
         // Recessed ER meter with a raised metal lip and fine red tick marks.
         int bx = x + 46;
-        int by = y + 27;
+        int by = y + 31;
         fill(pose, bx - 3, by - 3, bx + 87, by + 9, 0xFF1A1D20);
         fill(pose, bx - 2, by - 2, bx + 86, by + 8, 0xFF9AA1A3);
         fill(pose, bx - 1, by - 1, bx + 85, by + 7, 0xFF25292D);
@@ -62,10 +63,10 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
 
         // A small guarded burner sits between the ER meter and the fuel slot.
         int flameX = x + 83;
-        int flameY = y + 41;
-        fill(pose, x + 77, y + 39, x + 99, y + 55, 0xFF24282B);
-        fill(pose, x + 78, y + 40, x + 98, y + 41, 0xFF848C8F);
-        fill(pose, x + 80, y + 53, x + 96, y + 55, 0xFF171A1D);
+        int flameY = y + 38;
+        fill(pose, x + 77, y + 41, x + 99, y + 54, palette.accentDark());
+        fill(pose, x + 78, y + 42, x + 98, y + 43, palette.highlight());
+        fill(pose, x + 80, y + 52, x + 96, y + 54, palette.outer());
         if (menu.burnLeft() > 0) {
             int flicker = (int) (System.currentTimeMillis() / 140L % 3L);
             fill(pose, flameX + 4, flameY + 7 + flicker, flameX + 10, flameY + 15, 0xFFFF4A00);
@@ -74,14 +75,40 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
         } else {
             fill(pose, flameX + 3, flameY + 11, flameX + 11, flameY + 13, 0xFF8A6A4B);
         }
-        fill(pose, x + 79, y + 55, x + 97, y + 56, 0xFFA0A4A4);
+        fill(pose, x + 79, y + 53, x + 97, y + 54, palette.highlight());
     }
 
     @Override
     protected void renderLabels(PoseStack pose, int mouseX, int mouseY) {
-        this.font.draw(pose, "Energia Redstônica", 8, 7, 0xFFE5E6E4);
-        this.font.draw(pose, "ER", 29, 28, 0xFFC5C9C9);
-        this.font.draw(pose, Math.round(menu.energy() * 100.0F / JetpackItem.CAPACITY) + "%", 137, 25, 0xFFF0E8DF);
+        Palette palette = palette();
+        String title = "Jetpack";
+        String subtitle = "(" + menu.materialName() + ")";
+        this.font.draw(pose, title, (this.imageWidth - this.font.width(title)) / 2, 5, 0xFFF3F3F3);
+        this.font.draw(pose, subtitle, (this.imageWidth - this.font.width(subtitle)) / 2, 15, palette.subtitle());
+        this.font.draw(pose, "ER", 19, 32, 0xFFE5E6E4);
+        this.font.draw(pose, Math.round(menu.energy() * 100.0F / JetpackItem.CAPACITY) + "%", 137, 31, 0xFFF0E8DF);
         this.font.draw(pose, "Inventário", this.inventoryLabelX, this.inventoryLabelY, 0xFFE0DDD4);
     }
+
+    private Palette palette() {
+        return switch (menu.materialName()) {
+            case "Madeira" -> new Palette(0xFF24180F, 0xFF88613D, 0xFF473326, 0xFF332419,
+                    0xFF302116, 0xFF8A4F2B, 0xFFA27649, 0xFFC18B55, 0xFF52351F, 0xFFD8B184);
+            case "Ferro" -> new Palette(0xFF202326, 0xFF8F999E, 0xFF444A4E, 0xFF2D3236,
+                    0xFF252A2E, 0xFF687984, 0xFFA2ADB2, 0xFFD0D7DA, 0xFF38434A, 0xFFD4DADD);
+            case "Ouro" -> new Palette(0xFF30240B, 0xFFB18C35, 0xFF685522, 0xFF403418,
+                    0xFF3A2D0D, 0xFF8C6A20, 0xFFC5A344, 0xFFE3C45C, 0xFF594313, 0xFFEAD47A);
+            case "Esmeralda" -> new Palette(0xFF0C261A, 0xFF39856A, 0xFF1D553F, 0xFF14382B,
+                    0xFF103223, 0xFF1F694B, 0xFF4A9E7D, 0xFF71C39A, 0xFF164831, 0xFF9AD7B8);
+            case "Diamante" -> new Palette(0xFF102930, 0xFF4B9DAC, 0xFF215866, 0xFF183C46,
+                    0xFF143740, 0xFF267486, 0xFF65B6C4, 0xFF8CD2DD, 0xFF1A5664, 0xFFA9E0E7);
+            case "Netherita" -> new Palette(0xFF191718, 0xFF6B6361, 0xFF3B3737, 0xFF292626,
+                    0xFF211F20, 0xFF514B4A, 0xFF827A77, 0xFFA59B96, 0xFF343031, 0xFFB8ADA7);
+            default -> new Palette(0xFF15191D, 0xFF8A9297, 0xFF393D40, 0xFF292E33,
+                    0xFF24292E, 0xFF70787D, 0xFF9AA1A3, 0xFFB7BEC0, 0xFF383D41, 0xFFE0DDD4);
+        };
+    }
+
+    private record Palette(int outer, int rim, int surface, int inset, int header,
+                           int panel, int accent, int highlight, int accentDark, int subtitle) {}
 }

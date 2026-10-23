@@ -71,6 +71,10 @@ public final class JetpackFuelMenu extends AbstractContainerMenu {
     public int burnLeft() { return playerInventory.player.level.isClientSide ? clientBurnLeft : getHost().getOrCreateTag().getInt("JetpackBurnLeft"); }
     public int burnTotal() { return playerInventory.player.level.isClientSide ? clientBurnTotal : getHost().getOrCreateTag().getInt("JetpackBurnTotal"); }
     public UUID jetpackId() { return jetpackId; }
+    public String materialName() {
+        ItemStack host = getHost();
+        return host.getItem() instanceof JetpackItem item ? item.materialName() : "";
+    }
 
     @Override public boolean stillValid(Player player) { return player.isAlive() && !JetpackFueling.findHost(player, jetpackId).isEmpty(); }
 
