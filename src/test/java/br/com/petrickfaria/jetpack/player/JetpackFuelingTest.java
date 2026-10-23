@@ -32,8 +32,8 @@ class JetpackFuelingTest {
 
     @Test
     void otherFuelsScaleWithTheirBurnDuration() {
-        assertEquals(300.0D, JetpackFueling.energyForBurnTicks(800), 0.000001D);
-        assertEquals(37.5D, JetpackFueling.energyForBurnTicks(100), 0.000001D);
+        assertEquals(120.0D, JetpackFueling.energyForBurnTicks(800), 0.000001D);
+        assertEquals(15.0D, JetpackFueling.energyForBurnTicks(100), 0.000001D);
     }
 
     @Test
