@@ -17,16 +17,14 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = JetpackMod.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class JetpackClientUi {
-    private static final int SLOT_SIZE = 18;
+    private static final int SLOT_SIZE = JetpackInventorySlots.EQUIPMENT_SLOT_SIZE;
 
     @SubscribeEvent
     public static void renderInventorySlot(ScreenEvent.Render.Post event) {
         if (!(event.getScreen() instanceof InventoryScreen)) return;
         Minecraft mc = Minecraft.getInstance();
-        int left = (mc.getWindow().getGuiScaledWidth() - 176) / 2;
-        int top = (mc.getWindow().getGuiScaledHeight() - 166) / 2;
-        int x = left - 10;
-        int y = top + 26;
+        int x = JetpackInventorySlots.equipmentSlotLeft(event.getScreen().width);
+        int y = JetpackInventorySlots.equipmentSlotTop(event.getScreen().height);
         var pose = event.getPoseStack();
         // Keep the approved slot bounds/position while giving its inset a subtle
         // steel bevel and a tiny redstone-burner mark when it is empty.
@@ -59,6 +57,21 @@ public final class JetpackClientUi {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
+        boolean overEquipmentSlot = JetpackInventorySlots.isEquipmentSlotAt(
+                screen.width, screen.height, event.getMouseX(), event.getMouseY());
+
+        if (overEquipmentSlot && event.getButton() == 0 && Screen.hasShiftDown()) {
+            event.setCanceled(true);
+            JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.ShiftClickUnequip());
+            return;
+        }
+
+        if (overEquipmentSlot && event.getButton() == 1) {
+            event.setCanceled(true);
+            JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.OpenFuelFromEquipment());
+            return;
+        }
+
         if (event.getButton() == 0 && Screen.hasShiftDown()) {
             int menuSlot = inventorySlotAt(screen, event.getMouseX(), event.getMouseY());
             ItemStack source = stackForInventoryMenuSlot(mc.player.getInventory(), menuSlot);
@@ -83,13 +96,7 @@ public final class JetpackClientUi {
         }
 
         if (event.getButton() != 0) return;
-        int left = (mc.getWindow().getGuiScaledWidth() - 176) / 2;
-        int top = (mc.getWindow().getGuiScaledHeight() - 166) / 2;
-        int x = left - 10;
-        int y = top + 26;
-        double mouseX = event.getMouseX();
-        double mouseY = event.getMouseY();
-        if (mouseX < x || mouseX >= x + SLOT_SIZE || mouseY < y || mouseY >= y + SLOT_SIZE) return;
+        if (!overEquipmentSlot) return;
         event.setCanceled(true);
         JetpackNetwork.CHANNEL.sendToServer(new JetpackNetwork.EquipmentClick());
     }

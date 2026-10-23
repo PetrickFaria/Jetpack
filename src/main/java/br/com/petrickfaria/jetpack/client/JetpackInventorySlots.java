@@ -2,6 +2,25 @@ package br.com.petrickfaria.jetpack.client;
 
 /** Hit-test helper for the vanilla player inventory grid; contains no client rendering dependencies. */
 public final class JetpackInventorySlots {
+    public static final int EQUIPMENT_SLOT_X = 78;
+    public static final int EQUIPMENT_SLOT_Y = 26;
+    public static final int EQUIPMENT_SLOT_SIZE = 18;
+
+    public static int equipmentSlotLeft(int guiWidth) {
+        return (guiWidth - 176) / 2 + EQUIPMENT_SLOT_X;
+    }
+
+    public static int equipmentSlotTop(int guiHeight) {
+        return (guiHeight - 166) / 2 + EQUIPMENT_SLOT_Y;
+    }
+
+    public static boolean isEquipmentSlotAt(int guiWidth, int guiHeight, double mouseX, double mouseY) {
+        int left = equipmentSlotLeft(guiWidth);
+        int top = equipmentSlotTop(guiHeight);
+        return mouseX >= left && mouseX < left + EQUIPMENT_SLOT_SIZE
+                && mouseY >= top && mouseY < top + EQUIPMENT_SLOT_SIZE;
+    }
+
     public static int menuSlotAt(int guiWidth, int guiHeight, double mouseX, double mouseY) {
         int left = (guiWidth - 176) / 2;
         int top = (guiHeight - 166) / 2;

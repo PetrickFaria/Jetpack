@@ -26,7 +26,7 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraftforge.network.NetworkHooks;
 
 public final class JetpackNetwork {
-    private static final String PROTOCOL = "5";
+    private static final String PROTOCOL = "6";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(JetpackMod.MOD_ID, "main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
@@ -45,6 +45,10 @@ public final class JetpackNetwork {
                 OpenFuelFromInventory::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(6, ThrustSoundState.class, ThrustSoundState::encode, ThrustSoundState::decode,
                 ThrustSoundState::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(7, ShiftClickUnequip.class, ShiftClickUnequip::encode, ShiftClickUnequip::decode,
+                ShiftClickUnequip::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(8, OpenFuelFromEquipment.class, OpenFuelFromEquipment::encode, OpenFuelFromEquipment::decode,
+                OpenFuelFromEquipment::handle, java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     public static void syncEquipment(ServerPlayer player) {
@@ -150,6 +154,32 @@ public final class JetpackNetwork {
         }
     }
 
+    /** Returns the equipped jetpack to the first free player inventory slot. */
+    public static final class ShiftClickUnequip {
+        private static void encode(ShiftClickUnequip m, FriendlyByteBuf b) {}
+        private static ShiftClickUnequip decode(FriendlyByteBuf b) { return new ShiftClickUnequip(); }
+        private static void handle(ShiftClickUnequip m, Supplier<NetworkEvent.Context> s) {
+            NetworkEvent.Context c = s.get();
+            c.enqueueWork(() -> {
+                ServerPlayer p = c.getSender();
+                if (p == null || !(p.containerMenu instanceof InventoryMenu)) return;
+                ItemStack equipped = JetpackEquipment.get(p);
+                if (!(equipped.getItem() instanceof JetpackItem)) return;
+                for (int slot = 0; slot < p.getInventory().items.size(); slot++) {
+                    if (p.getInventory().items.get(slot).isEmpty()) {
+                        p.getInventory().setItem(slot, equipped.copy());
+                        p.getInventory().setChanged();
+                        JetpackEquipment.set(p, ItemStack.EMPTY);
+                        p.containerMenu.broadcastChanges();
+                        return;
+                    }
+                }
+                // A full inventory leaves the original stack and its NBT equipped.
+            });
+            c.setPacketHandled(true);
+        }
+    }
+
     /** Opens a fuel menu for the exact jetpack clicked in the player's inventory. */
     public static final class OpenFuelFromInventory {
         private final int menuSlot;
@@ -164,14 +194,37 @@ public final class JetpackNetwork {
                 ItemStack pack = inventoryStack(p, m.menuSlot);
                 if (!(pack.getItem() instanceof JetpackItem)) return;
                 UUID id = JetpackItem.getOrCreateInstanceId(pack);
-                ItemStack snapshot = pack.copy();
                 p.getInventory().setChanged();
-                NetworkHooks.openScreen(p, new SimpleMenuProvider(
-                        (containerId, inventory, user) -> new br.com.petrickfaria.jetpack.menu.JetpackFuelMenu(containerId, inventory, id),
-                        Component.literal("Abastecer Jetpack")), buf -> { buf.writeUUID(id); buf.writeItem(snapshot); });
+                openFuelMenu(p, id, pack);
             });
             c.setPacketHandled(true);
         }
+    }
+
+    /** Opens the fuel interface for the exact stack stored in the accessory slot. */
+    public static final class OpenFuelFromEquipment {
+        private static void encode(OpenFuelFromEquipment m, FriendlyByteBuf b) {}
+        private static OpenFuelFromEquipment decode(FriendlyByteBuf b) { return new OpenFuelFromEquipment(); }
+        private static void handle(OpenFuelFromEquipment m, Supplier<NetworkEvent.Context> s) {
+            NetworkEvent.Context c = s.get();
+            c.enqueueWork(() -> {
+                ServerPlayer p = c.getSender();
+                if (p == null || !(p.containerMenu instanceof InventoryMenu)) return;
+                ItemStack pack = JetpackEquipment.get(p);
+                if (!(pack.getItem() instanceof JetpackItem)) return;
+                UUID id = JetpackItem.getOrCreateInstanceId(pack);
+                JetpackEquipment.set(p, pack); // Persist the ID on the equipped item before opening its menu.
+                openFuelMenu(p, id, pack);
+            });
+            c.setPacketHandled(true);
+        }
+    }
+
+    private static void openFuelMenu(ServerPlayer player, UUID id, ItemStack pack) {
+        ItemStack snapshot = pack.copy();
+        NetworkHooks.openScreen(player, new SimpleMenuProvider(
+                (containerId, inventory, user) -> new br.com.petrickfaria.jetpack.menu.JetpackFuelMenu(containerId, inventory, id),
+                Component.literal("Abastecer Jetpack")), buf -> { buf.writeUUID(id); buf.writeItem(snapshot); });
     }
 
     private static boolean isPlayerInventorySlot(int menuSlot) { return menuSlot >= 9 && menuSlot <= 44; }
