@@ -121,8 +121,8 @@ class JetpackFlightTest {
 
     @Test
     void controlledDescentHorizontalDeltaMatchesCreativeFlightForCardinalAndDiagonalInput() {
-        double drag = 0.91D;
-        double airborneInput = 0.02D;
+        double drag = (double) 0.91F;
+        double airborneInput = (double) (0.02F * 0.3F);
         double creativeInput = (double) 0.05F;
         double[][] inputs = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}, {1, 1}};
         for (double[] direction : inputs) {
@@ -148,8 +148,10 @@ class JetpackFlightTest {
         Vec3 afterAirTravel = new Vec3(0.0D, -0.2D, 0.0D);
         Vec3 controlled = JetpackFlight.controlledDescentMotion(afterAirTravel, true, false,
                 0.0F, 1.0F, 90.0F);
-        assertEquals(forwardInput.x * ((double) 0.05F - 0.02D) * 0.91D, controlled.x, 1.0E-12D);
-        assertEquals(forwardInput.z * ((double) 0.05F - 0.02D) * 0.91D, controlled.z, 1.0E-12D);
+        assertEquals(forwardInput.x * ((double) 0.05F - (double) (0.02F * 0.3F))
+                * (double) 0.91F, controlled.x, 1.0E-12D);
+        assertEquals(forwardInput.z * ((double) 0.05F - (double) (0.02F * 0.3F))
+                * (double) 0.91F, controlled.z, 1.0E-12D);
         assertEquals(afterAirTravel.x, JetpackFlight.controlledDescentMotion(
                 afterAirTravel, true, false, 0.0F, 0.0F, 90.0F).x, 0.0D);
         assertEquals(afterAirTravel.z, JetpackFlight.controlledDescentMotion(

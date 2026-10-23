@@ -28,8 +28,11 @@ public final class JetpackFlight {
     public static final int POWERED_ENERGY_PER_TICK = 1;
     public static final double CEILING_POSITION_TOLERANCE = 0.2D;
     private static final double SLOW_DESCENT_SPEED = 0.025D;
-    private static final double AIRBORNE_INPUT_SPEED = 0.02D;
-    private static final double FLIGHT_HORIZONTAL_DRAG = 0.91D;
+    // Player.travel applies the 0.3 crouch input multiplier before airborne travel.
+    // Shift remains held during controlled descent, so compensate for that effective
+    // air input rather than the uncrouched 0.02 value.
+    private static final double CROUCHED_AIRBORNE_INPUT_SPEED = (double) (0.02F * 0.3F);
+    private static final double FLIGHT_HORIZONTAL_DRAG = (double) 0.91F;
     // Vanilla LocalPlayer adds 3 * flyingSpeed to vertical motion while jump is held.
     // Creative Player.travel retains 60% of that motion after moving, so sustained
     // ascent displacement converges to input / (1 - 0.6).
@@ -312,15 +315,16 @@ public final class JetpackFlight {
     }
 
     /**
-     * The airborne fall path adds 0.02 horizontal input before applying 0.91 drag.
-     * Creative flight adds the player's 0.05 flying input with the same drag. This
-     * adds only the missing post-travel delta while preserving the controlled Y speed.
+     * During Shift descent, airborne travel adds 0.02 * 0.3 horizontal input before
+     * applying 0.91 drag. Creative flight adds the player's 0.05 flying input with
+     * the same drag. Add only the missing post-travel delta and preserve controlled Y.
      */
     public static Vec3 controlledDescentMotion(Vec3 motion, boolean down, boolean onGround,
                                                 float strafe, float forward, float yawDegrees) {
         if (!down || onGround) return motion;
         Vec3 input = normalizeMovementInput(strafe, forward).yRot((float) Math.toRadians(-yawDegrees));
-        double missingAcceleration = (CREATIVE_FLY_SPEED - AIRBORNE_INPUT_SPEED) * FLIGHT_HORIZONTAL_DRAG;
+        double missingAcceleration = (CREATIVE_FLY_SPEED - CROUCHED_AIRBORNE_INPUT_SPEED)
+                * FLIGHT_HORIZONTAL_DRAG;
         return new Vec3(motion.x + input.x * missingAcceleration,
                 -SLOW_DESCENT_SPEED,
                 motion.z + input.z * missingAcceleration);

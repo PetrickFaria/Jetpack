@@ -23,7 +23,10 @@ public final class JetpackClientSounds {
         }
         Entity entity = mc.level == null ? null : mc.level.getEntity(entityId);
         if (entity == null) return;
-        if (current != null && !current.isStopped()) return;
+        if (current != null && !current.isStopped()) {
+            current.resume();
+            return;
+        }
         TurbineSound sound = new TurbineSound(entity);
         ACTIVE.put(entityId, sound);
         mc.getSoundManager().play(sound);
@@ -52,6 +55,7 @@ public final class JetpackClientSounds {
         }
 
         private void fadeOut() { fadingOut = true; }
+        private void resume() { fadingOut = false; }
 
         @Override
         public void tick() {
