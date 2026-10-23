@@ -7,6 +7,7 @@ import br.com.petrickfaria.jetpack.item.JetpackItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.MovementInputUpdateEvent;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -17,6 +18,24 @@ public final class JetpackClientInput {
     private static boolean previousJump, lastUp, lastDown;
     private static float lastStrafe, lastForward;
     private static long previousJumpAt;
+
+    @SubscribeEvent
+    public static void onMovementInput(MovementInputUpdateEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || event.getEntity() != mc.player) return;
+        var flight = JetpackClientState.getFlight(mc.player.getId());
+        if (!flight.active() || !JetpackFlight.shouldSuppressAscent(
+                event.getInput().jumping, mc.player.getY(), flight.ceiling())) return;
+
+        // Stop the vanilla jump input before travel applies it. If this is the last
+        // sub-step to the cap, align once to the exact boundary (at most 0.2 blocks).
+        if (mc.player.getY() < flight.ceiling()) {
+            mc.player.setPos(mc.player.getX(), flight.ceiling(), mc.player.getZ());
+            Vec3 motion = mc.player.getDeltaMovement();
+            if (motion.y > 0.0D) mc.player.setDeltaMovement(motion.x, 0.0D, motion.z);
+        }
+        event.getInput().jumping = false;
+    }
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -51,6 +70,7 @@ public final class JetpackClientInput {
             Vec3 motion = mc.player.getDeltaMovement();
             Vec3 constrained = JetpackFlight.constrainFlightMotion(motion, down, mc.player.isOnGround(), mc.player.getY(), flight.ceiling());
             if (!constrained.equals(motion)) mc.player.setDeltaMovement(constrained);
+            JetpackFlight.enforceCeilingPosition(mc.player, flight.ceiling());
         } else if (down && !mc.player.isCreative() && !mc.player.isSpectator()) {
             var pack = JetpackClientState.getEquipment(mc.player.getId());
             if (pack.getItem() instanceof JetpackItem && JetpackItem.energy(pack) > 0 && !mc.player.isOnGround()) {

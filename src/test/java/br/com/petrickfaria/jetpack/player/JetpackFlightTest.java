@@ -4,6 +4,8 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JetpackFlightTest {
     @Test
@@ -64,5 +66,33 @@ class JetpackFlightTest {
         assertEquals(rising.z, capped.z, 0.0D);
         Vec3 falling = new Vec3(0.1D, -0.1D, -0.1D);
         assertEquals(falling, JetpackFlight.constrainFlightMotion(falling, false, false, 55.0D, 55.0D));
+    }
+
+    @Test
+    void upwardInputIsSuppressedAtTheBoundaryWithoutChangingOtherInputs() {
+        assertFalse(JetpackFlight.shouldSuppressAscent(false, 5.0D, 5.0D));
+        assertFalse(JetpackFlight.shouldSuppressAscent(true, 4.79D, 5.0D));
+        assertTrue(JetpackFlight.shouldSuppressAscent(true, 4.8D, 5.0D));
+        assertTrue(JetpackFlight.shouldSuppressAscent(true, 5.0D, 5.0D));
+        assertTrue(JetpackFlight.shouldSuppressAscent(true, 20.0D, 5.0D));
+    }
+
+    @Test
+    void oneStepOvershootIsCorrectedToTheCeiling() {
+        assertEquals(5.0D, JetpackFlight.correctedCeilingY(5.15D, 5.0D), 0.0D);
+        assertEquals(5.0D, JetpackFlight.authoritativeCeilingY(5.15D, 5.0D, false), 0.0D);
+    }
+
+    @Test
+    void largeUnauthorizedOvershootIsCorrectedButTerrainLoweringRemainsGradual() {
+        assertEquals(5.0D, JetpackFlight.authoritativeCeilingY(6.0D, 5.0D, false), 0.0D);
+        assertEquals(6.0D, JetpackFlight.authoritativeCeilingY(6.0D, 5.0D, true), 0.0D);
+    }
+
+    @Test
+    void jetpackStopsOnlyAfterShiftDescentHasActuallyLanded() {
+        assertFalse(JetpackFlight.shouldStopOnLanding(true, false));
+        assertFalse(JetpackFlight.shouldStopOnLanding(false, true));
+        assertTrue(JetpackFlight.shouldStopOnLanding(true, true));
     }
 }

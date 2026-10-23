@@ -1,5 +1,6 @@
 package br.com.petrickfaria.jetpack.client;
 
+import net.minecraft.client.Minecraft;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.world.item.ItemStack;
@@ -18,7 +19,15 @@ public final class JetpackClientState {
         return stack == null ? ItemStack.EMPTY : stack.copy();
     }
     public static void setFlight(int entityId, boolean active, double ceiling) {
-        if (active) FLIGHT.put(entityId, new FlightState(true, ceiling));
+        if (active) {
+            FlightState previous = FLIGHT.getOrDefault(entityId, FlightState.OFF);
+            Minecraft mc = Minecraft.getInstance();
+            if (!previous.active() && mc.player != null && mc.player.getId() == entityId) {
+                var motion = mc.player.getDeltaMovement();
+                if (motion.y < 0.0D) mc.player.setDeltaMovement(motion.x, 0.0D, motion.z);
+            }
+            FLIGHT.put(entityId, new FlightState(true, ceiling));
+        }
         else FLIGHT.remove(entityId);
     }
     public static FlightState getFlight(int entityId) { return FLIGHT.getOrDefault(entityId, FlightState.OFF); }

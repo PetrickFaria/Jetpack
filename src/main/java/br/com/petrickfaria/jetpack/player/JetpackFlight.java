@@ -26,6 +26,7 @@ public final class JetpackFlight {
     private static final String FLIGHT_KEY = "jetpack_flight";
     private static final int SURFACE_SEARCH_DEPTH = 128;
     public static final int POWERED_ENERGY_PER_TICK = 1;
+    public static final double CEILING_POSITION_TOLERANCE = 0.2D;
     private static final double SLOW_DESCENT_SPEED = 0.025D;
     private static final double TERRAIN_CORRECTION_SPEED = 0.08D;
     // Vanilla Abilities initializes Creative flight to 0.05F; use the same speed value.
@@ -35,18 +36,13 @@ public final class JetpackFlight {
 
     public static void handleInput(ServerPlayer player, boolean toggle, boolean up, boolean down, float strafe, float forward) {
         var state = state(player);
-        boolean jumpEdge = up && !state.getBoolean("jumpPressed");
-        state.putBoolean("jumpPressed", up);
         state.putBoolean("down", down);
-        if (jumpEdge) {
-            long now = System.currentTimeMillis();
-            long last = state.getLong("lastJumpAt");
-            boolean doubleTap = last > 0L && now - last <= 300L;
-            state.putLong("lastJumpAt", doubleTap ? 0L : now);
-            if (doubleTap) {
-                if (state.getBoolean("active")) stop(player, state);
-                else start(player, state);
-            }
+        // The client sends one toggle only after its double-tap detector fires.
+        // Do not independently time the same taps on the server: packet timing can
+        // differ enough to miss a valid retoggle during a fall.
+        if (toggle) {
+            if (state.getBoolean("active")) stop(player, state);
+            else start(player, state);
         }
     }
 
@@ -56,12 +52,14 @@ public final class JetpackFlight {
         if (pack.item == null || pack.energy <= 0) return;
 
         double surface = findSurfaceBelow(player);
-        if (!Double.isFinite(surface) || player.getY() > altitudeCeiling(surface, pack.item.maximumHeight())) return;
+        if (!Double.isFinite(surface)) return;
 
         var abilities = player.getAbilities();
         state.putDouble("surfaceY", surface);
         state.putDouble("ceiling", altitudeCeiling(surface, pack.item.maximumHeight()));
         state.putDouble("syncedCeiling", altitudeCeiling(surface, pack.item.maximumHeight()));
+        state.putDouble("lastFlightY", player.getY());
+        state.putBoolean("terrainCorrection", player.getY() > altitudeCeiling(surface, pack.item.maximumHeight()));
         state.putBoolean("active", true);
         state.putBoolean("previousMayfly", abilities.mayfly);
         state.putBoolean("previousFlying", abilities.flying);
@@ -69,6 +67,8 @@ public final class JetpackFlight {
         abilities.mayfly = true;
         abilities.flying = true;
         abilities.setFlyingSpeed(CREATIVE_FLY_SPEED);
+        Vec3 motion = player.getDeltaMovement();
+        if (motion.y < 0.0D) player.setDeltaMovement(motion.x, 0.0D, motion.z);
         player.onUpdateAbilities();
         player.fallDistance = 0;
         JetpackNetwork.syncFlightState(player, true, altitudeCeiling(surface, pack.item.maximumHeight()));
@@ -111,6 +111,10 @@ public final class JetpackFlight {
     }
 
     private static void tickPoweredFlight(Player player, net.minecraft.nbt.CompoundTag state) {
+        if (shouldStopOnLanding(state.getBoolean("down"), player.isOnGround())) {
+            stop(player, state);
+            return;
+        }
         ItemStackView equipped = equippedPack(player);
         if (equipped.item == null || equipped.energy <= 0) {
             stop(player, state);
@@ -118,20 +122,23 @@ public final class JetpackFlight {
         }
 
         // Sample the support directly below the player. It follows terrain rather than the takeoff Y.
-        if (player.tickCount % 3 == 0) {
-            double surface = findSurfaceBelow(player);
-            if (Double.isFinite(surface)) state.putDouble("surfaceY", surface);
-        }
+        double sampledSurface = findSurfaceBelow(player);
+        if (Double.isFinite(sampledSurface)) state.putDouble("surfaceY", sampledSurface);
         double surface = state.contains("surfaceY") ? state.getDouble("surfaceY") : findSurfaceBelow(player);
         if (!Double.isFinite(surface)) {
             // Safety fallback: retain the last validated surface; if none exists, disable flight.
             stop(player, state);
             return;
         }
+        double previousCeiling = state.getDouble("ceiling");
+        boolean hadCeiling = state.contains("ceiling");
         double ceiling = altitudeCeiling(surface, equipped.item.maximumHeight());
+        if (hadCeiling && ceiling < previousCeiling - 1.0E-4D && player.getY() > ceiling)
+            state.putBoolean("terrainCorrection", true);
+        if (player.getY() <= ceiling) state.putBoolean("terrainCorrection", false);
         state.putDouble("ceiling", ceiling);
         double synced = state.getDouble("syncedCeiling");
-        if (Math.abs(ceiling - synced) >= 0.25D && player instanceof ServerPlayer serverPlayer) {
+        if (Math.abs(ceiling - synced) >= 1.0E-3D && player instanceof ServerPlayer serverPlayer) {
             state.putDouble("syncedCeiling", ceiling);
             JetpackNetwork.syncFlightState(serverPlayer, true, ceiling);
         }
@@ -139,6 +146,11 @@ public final class JetpackFlight {
         Vec3 motion = player.getDeltaMovement();
         Vec3 constrained = constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(), player.getY(), ceiling);
         if (!constrained.equals(motion)) player.setDeltaMovement(constrained);
+        enforceCeilingPosition(player, ceiling);
+        if (player instanceof ServerPlayer serverPlayer) {
+            enforceServerCeilingPosition(serverPlayer, state, ceiling);
+            state.putDouble("lastFlightY", serverPlayer.getY());
+        }
 
         var pack = JetpackEquipment.get(player);
         if (JetpackItem.consume(pack, POWERED_ENERGY_PER_TICK, false) != POWERED_ENERGY_PER_TICK) {
@@ -176,11 +188,68 @@ public final class JetpackFlight {
         // ability flying speed. Do not replace Creative's native descent with the
         // separate slow-descent assist used after powered flight is switched off.
         if (y > ceiling) {
-            // A newly lower terrain surface lowers the cap gradually, without teleporting the player.
+            // A newly lower terrain ceiling descends gently; the server separately
+            // prevents any upward position change during this correction.
             return new Vec3(motion.x, Mth.clamp(motion.y, -TERRAIN_CORRECTION_SPEED, -SLOW_DESCENT_SPEED), motion.z);
         }
-        if (y >= ceiling && motion.y > 0.0D) return new Vec3(motion.x, 0.0D, motion.z);
+        if (y >= ceiling - 1.0E-5D && motion.y > 0.0D) return new Vec3(motion.x, 0.0D, motion.z);
         return motion;
+    }
+
+    /** Suppress native upward input at the boundary without changing horizontal or down movement. */
+    public static boolean shouldSuppressAscent(boolean jumping, double y, double ceiling) {
+        return jumping && y >= ceiling - CEILING_POSITION_TOLERANCE;
+    }
+
+    public static boolean shouldStopOnLanding(boolean shiftDown, boolean onGround) {
+        return shiftDown && onGround;
+    }
+
+    /** Correct a one-step overshoot; larger gaps are terrain changes and descend gradually. */
+    public static double correctedCeilingY(double y, double ceiling) {
+        return y > ceiling && y - ceiling <= CEILING_POSITION_TOLERANCE ? ceiling : y;
+    }
+
+    public static double authoritativeCeilingY(double y, double ceiling, boolean gradualTerrainCorrection) {
+        if (y <= ceiling) return y;
+        return gradualTerrainCorrection && y - ceiling > CEILING_POSITION_TOLERANCE ? y : ceiling;
+    }
+
+    public static void enforceCeilingPosition(Player player, double ceiling) {
+        double y = player.getY();
+        double correctedY = correctedCeilingY(y, ceiling);
+        if (correctedY == y) return;
+        Vec3 motion = player.getDeltaMovement();
+        player.setDeltaMovement(motion.x, motion.y > 0.0D ? 0.0D : motion.y, motion.z);
+        if (player instanceof ServerPlayer serverPlayer) {
+            // Authoritative correction is limited to a single normal flight step.
+            serverPlayer.teleportTo(player.getX(), correctedY, player.getZ());
+        } else {
+            player.setPos(player.getX(), correctedY, player.getZ());
+        }
+    }
+
+    private static void enforceServerCeilingPosition(ServerPlayer player,
+                                                       net.minecraft.nbt.CompoundTag state,
+                                                       double ceiling) {
+        double y = player.getY();
+        boolean gradualTerrainCorrection = state.getBoolean("terrainCorrection");
+        if (gradualTerrainCorrection && y - ceiling > CEILING_POSITION_TOLERANCE) {
+            double previousY = state.getDouble("lastFlightY");
+            if (state.contains("lastFlightY") && y > previousY + 1.0E-4D) {
+                Vec3 motion = player.getDeltaMovement();
+                player.setDeltaMovement(motion.x, 0.0D, motion.z);
+                player.teleportTo(player.getX(), previousY, player.getZ());
+            }
+            return;
+        }
+        double correctedY = authoritativeCeilingY(y, ceiling, false);
+        if (correctedY == y) return;
+        Vec3 motion = player.getDeltaMovement();
+        player.setDeltaMovement(motion.x, motion.y > 0.0D ? 0.0D : motion.y, motion.z);
+        // Position packets above an unchanged limit are rejected immediately. A newly
+        // lowered terrain ceiling is the sole case corrected with the gentle descent.
+        player.teleportTo(player.getX(), correctedY, player.getZ());
     }
 
     public static Vec3 controlledDescentMotion(Vec3 motion, boolean down, boolean onGround) {
