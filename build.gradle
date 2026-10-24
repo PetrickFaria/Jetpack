@@ -240,19 +240,22 @@ tasks.register('verifyModJarAssets') {
                         int width = rect[2] as int
                         int height = rect[3] as int
                         int opaquePixels = 0
+                        def islandColors = new HashSet<Integer>()
                         for (int y = top; y < top + height; y++) {
                             for (int x = left; x < left + width; x++) {
                                 if (alpha.getSample(x, y, 0) == 255) opaquePixels++
+                                islandColors.add(atlas.getRGB(x, y) & 0x00ffffff)
                             }
                         }
                         if (opaquePixels != width * height) {
                             throw new GradleException("Back UV island has transparent holes in ${backAtlasPath}: ${rect}")
                         }
+                        if (islandColors.size() < 3) {
+                            throw new GradleException("Back UV island has no useful texture detail in ${backAtlasPath}: ${rect}")
+                        }
                     }
-                    int expectedAtlasPixels = 0
-                    atlasRects.each { rect -> expectedAtlasPixels += (rect[2] as int) * (rect[3] as int) }
-                    if (atlasOpaquePixels != expectedAtlasPixels) {
-                        throw new GradleException("Back UV atlas has artwork outside its mapped islands: ${backAtlasPath}")
+                    if (atlasOpaquePixels != atlas.width * atlas.height) {
+                        throw new GradleException("Back UV atlas must use opaque color padding to prevent mipmap bleed: ${backAtlasPath}")
                     }
                 } finally {
                     atlasInput.close()
