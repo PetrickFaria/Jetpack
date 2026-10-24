@@ -5,6 +5,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class JetpackClientSoundsTest {
+    @Test void reconcilesMissingLoopsWithoutRestartingAnActiveLoop() {
+        org.junit.jupiter.api.Assertions.assertFalse(JetpackClientSounds.shouldRestartLoop(0, false));
+        org.junit.jupiter.api.Assertions.assertFalse(JetpackClientSounds.shouldRestartLoop(39, false));
+        org.junit.jupiter.api.Assertions.assertTrue(JetpackClientSounds.shouldRestartLoop(40, false));
+        org.junit.jupiter.api.Assertions.assertFalse(JetpackClientSounds.shouldRestartLoop(400, true));
+    }
+
     @Test
     void startsResumesAndStopsOneLoopWithoutCreatingOverlappingInstances() {
         assertEquals(JetpackClientSounds.PlaybackAction.START,

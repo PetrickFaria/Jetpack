@@ -19,10 +19,16 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = JetpackMod.MOD_ID, value = Dist.CLIENT)
 public final class JetpackClientSounds {
     private static final Map<Integer, TurbineSound> ACTIVE = new HashMap<>();
+    private static final boolean DEBUG = Boolean.getBoolean("jetpack.soundDebug");
+    private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
+    private static final Map<Integer, Boolean> DESIRED = new HashMap<>();
     private static final Map<Integer, Boolean> PENDING = new HashMap<>();
 
     public static void setThrust(int entityId, boolean playing) {
         Minecraft mc = Minecraft.getInstance();
+        boolean changed = DESIRED.containsKey(entityId) != playing;
+        if (playing) DESIRED.put(entityId, true); else DESIRED.remove(entityId);
+        if (DEBUG && changed) LOGGER.info("Jetpack sound desired entity={} thrust={}", entityId, playing);
         TurbineSound current = ACTIVE.get(entityId);
         PlaybackAction action = playbackAction(playing, current != null,
                 current == null || current.isStopped());
@@ -44,6 +50,7 @@ public final class JetpackClientSounds {
         TurbineSound sound = new TurbineSound(entity);
         ACTIVE.put(entityId, sound);
         mc.getSoundManager().play(sound);
+        if (DEBUG) LOGGER.info("Jetpack sound submitted entity={} category=PLAYERS volume={}", entityId, sound.volumeForDiagnostic());
     }
 
     static PlaybackAction playbackAction(boolean playing, boolean hasCurrent, boolean currentStopped) {
@@ -57,19 +64,42 @@ public final class JetpackClientSounds {
         for (TurbineSound sound : ACTIVE.values()) sound.fadeOut();
         ACTIVE.clear();
         PENDING.clear();
+        DESIRED.clear();
     }
 
     @SubscribeEvent
     public static void retryPendingSounds(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || PENDING.isEmpty()) return;
+        if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
-            PENDING.clear();
-            return;
+        if (mc.level == null) { stopAll(); return; }
+        if (mc.isPaused()) return;
+        // Flight snapshots are already server-authoritative. Reconcile the local
+        // engine as well as the dedicated edge-triggered sound packet.
+        if (mc.player != null) {
+            int id = mc.player.getId();
+            var pack = JetpackClientState.getEquipment(id);
+            boolean equipped = pack.getItem() instanceof br.com.petrickfaria.jetpack.item.JetpackItem;
+            boolean energy = equipped && br.com.petrickfaria.jetpack.item.JetpackItem.energy(pack) > 0;
+            boolean thrust = !mc.player.isCreative() && !mc.player.isSpectator()
+                    && br.com.petrickfaria.jetpack.player.JetpackFlight.shouldPlayThrustSound(
+                    JetpackClientState.getFlight(id).active(), energy,
+                    mc.options.keyShift.isDown(), mc.player.isOnGround());
+            setThrust(id, thrust);
         }
-        for (int entityId : java.util.List.copyOf(PENDING.keySet())) {
-            if (mc.level.getEntity(entityId) != null) setThrust(entityId, true);
+        for (int id : java.util.List.copyOf(DESIRED.keySet())) {
+            TurbineSound sound = ACTIVE.get(id);
+            if (sound != null) sound.age++;
+            if (sound != null && shouldRestartLoop(sound.age, mc.getSoundManager().isActive(sound))) {
+                if (DEBUG) LOGGER.info("Jetpack sound missing from engine entity={}, retrying", id);
+                mc.getSoundManager().stop(sound);
+                ACTIVE.remove(id);
+            }
+            setThrust(id, true);
         }
+    }
+
+    static boolean shouldRestartLoop(int age, boolean engineActive) {
+        return age >= 40 && !engineActive;
     }
 
     private static final class TurbineSound extends AbstractTickableSoundInstance {
@@ -77,13 +107,15 @@ public final class JetpackClientSounds {
         private static final float FADE_STEP = TARGET_VOLUME / 6.0F;
         private final Entity entity;
         private boolean fadingOut;
+        private int age;
+        private float volumeForDiagnostic() { return volume; }
 
         private TurbineSound(Entity entity) {
             super(ModSounds.JETPACK_TURBINE.get(), SoundSource.PLAYERS, RandomSource.create());
             this.entity = entity;
             this.looping = true;
             this.delay = 0;
-            this.volume = 0.0F;
+            this.volume = FADE_STEP;
             this.pitch = 1.0F;
             this.attenuation = Attenuation.LINEAR;
             updatePosition();
@@ -96,6 +128,7 @@ public final class JetpackClientSounds {
 
         @Override
         public void tick() {
+            if (DEBUG && age == 20) LOGGER.info("Jetpack sound ticked entity={} volume={} fading={}", entity.getId(), volume, fadingOut);
             if (entity.isRemoved()) {
                 ACTIVE.values().remove(this);
                 stop();
