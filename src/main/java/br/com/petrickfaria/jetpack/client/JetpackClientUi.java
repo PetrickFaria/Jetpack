@@ -127,7 +127,14 @@ public final class JetpackClientUi {
         String title = "Jetpack";
         int titleX = x + (96 - mc.font.width(title)) / 2;
         drawOutlinedText(mc, pose, title, titleX, y);
-        boolean active = JetpackClientState.getFlight(mc.player.getId()).active();
+        var flight = JetpackClientState.getFlight(mc.player.getId());
+        boolean controlledDescent = !flight.active()
+                && mc.player.isShiftKeyDown()
+                && !mc.player.isOnGround()
+                && !mc.player.isCreative()
+                && !mc.player.isSpectator()
+                && energy > 0;
+        boolean active = flight.active() || controlledDescent;
         int barY = y + 12;
         GuiComponent.fill(pose, x - 1, barY - 1, x + 97, barY + 11, 0xFF15191D);
         GuiComponent.fill(pose, x, barY, x + 96, barY + 10, 0xFF9AA1A3);

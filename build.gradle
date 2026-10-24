@@ -79,7 +79,8 @@ tasks.register('verifyModJarAssets') {
                 def stem = "jetpack_${tier}"
                 def modelPath = "assets/jetpack/models/item/${stem}.json"
                 def texturePath = "assets/jetpack/textures/item/${stem}.png"
-                [modelPath, texturePath].each { resourcePath ->
+                def entityTexturePath = "assets/jetpack/textures/entity/${stem}.png"
+                [modelPath, texturePath, entityTexturePath].each { resourcePath ->
                     if (!new File(sourceResources, resourcePath).isFile()) {
                         throw new GradleException("Missing source resource: ${resourcePath}")
                     }
@@ -90,8 +91,10 @@ tasks.register('verifyModJarAssets') {
 
                 def modelEntry = archive.getEntry(modelPath)
                 def textureEntry = archive.getEntry(texturePath)
+                def entityTextureEntry = archive.getEntry(entityTexturePath)
                 if (modelEntry == null) throw new GradleException("Missing model in JAR: ${modelPath}")
                 if (textureEntry == null) throw new GradleException("Missing texture in JAR: ${texturePath}")
+                if (entityTextureEntry == null) throw new GradleException("Missing back texture in JAR: ${entityTexturePath}")
 
                 def model = new groovy.json.JsonSlurper().parse(archive.getInputStream(modelEntry))
                 def expectedTexture = "jetpack:item/${stem}"
@@ -162,6 +165,29 @@ tasks.register('verifyModJarAssets') {
                 } finally {
                     textureInput.close()
                 }
+
+                def entityTextureInput = archive.getInputStream(entityTextureEntry)
+                try {
+                    def entityImage = javax.imageio.ImageIO.read(entityTextureInput)
+                    def itemImageInput = archive.getInputStream(textureEntry)
+                    try {
+                        def itemImage = javax.imageio.ImageIO.read(itemImageInput)
+                        if (entityImage == null || entityImage.width != itemImage.width || entityImage.height != itemImage.height) {
+                            throw new GradleException("Back texture dimensions differ from its icon: ${entityTexturePath}")
+                        }
+                        for (int y = 0; y < itemImage.height; y++) {
+                            for (int x = 0; x < itemImage.width; x++) {
+                                if ((entityImage.getRGB(x, y) >>> 24) != (itemImage.getRGB(x, y) >>> 24)) {
+                                    throw new GradleException("Back texture alpha mask differs from its item icon: ${entityTexturePath}")
+                                }
+                            }
+                        }
+                    } finally {
+                        itemImageInput.close()
+                    }
+                } finally {
+                    entityTextureInput.close()
+                }
             }
             def soundJsonPath = 'assets/jetpack/sounds.json'
             def soundPath = 'assets/jetpack/sounds/jetpack_turbine.ogg'
@@ -190,7 +216,7 @@ tasks.register('verifyModJarAssets') {
             } finally {
                 oggInput.close()
             }
-            logger.lifecycle("Verified pack.mcmeta, six item models, six recolored icons with the wooden alpha mask, and turbine sound in ${jarFile.name}")
+            logger.lifecycle("Verified pack.mcmeta, six item models, six recolored icons, six matching-alpha back textures, and turbine sound in ${jarFile.name}")
         } finally {
             archive.close()
         }

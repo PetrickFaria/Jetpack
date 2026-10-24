@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import net.minecraft.resources.ResourceLocation;
 import br.com.petrickfaria.jetpack.item.JetpackItem;
 import br.com.petrickfaria.jetpack.item.JetpackEnergyDrain;
+import br.com.petrickfaria.jetpack.menu.JetpackFuelMenu;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,6 +30,30 @@ class JetpackFuelingTest {
         assertEquals(300.0D, JetpackFueling.energyForBurnTicks(1600), 0.000001D);
         assertEquals(300.0D, (double) JetpackItem.COAL_ENERGY, 0.000001D);
         assertEquals(5.0D, JetpackItem.COAL_ENERGY * 100.0D / JetpackItem.CAPACITY, 0.0D);
+    }
+
+    @Test
+    void oneCoalAddsFivePercentToAnExistingFiftyPercentCharge() {
+        double fraction = 0.0D;
+        int charge = 3000;
+        int totalBurnTicks = 1600;
+        int burnLeft = totalBurnTicks;
+        while (burnLeft > 0) {
+            fraction = JetpackFueling.accumulatedCreditForGameTick(totalBurnTicks, burnLeft, fraction);
+            int whole = (int) fraction;
+            charge = Math.min(JetpackItem.CAPACITY, charge + whole);
+            fraction -= whole;
+            burnLeft -= Math.min(JetpackFueling.BURN_TICKS_PER_GAME_TICK, burnLeft);
+        }
+        assertEquals(3300, charge);
+        assertEquals(55.0D, charge * 100.0D / JetpackItem.CAPACITY, 0.0D);
+    }
+
+    @Test
+    void staleOversizedFuelNbtCannotMakeOneCoalFillTheBattery() {
+        double fraction = JetpackFueling.accumulatedCreditForGameTick(1600, 1600, 6000.0D);
+        assertEquals(30.0D, fraction, 0.000001D);
+        assertTrue(fraction < JetpackItem.CAPACITY);
     }
 
     @Test
@@ -58,6 +83,14 @@ class JetpackFuelingTest {
         charge = Math.min(JetpackItem.CAPACITY, charge + JetpackItem.COAL_ENERGY);
         assertEquals(6000, charge);
         assertEquals(43, fuelInSlot);
+    }
+
+    @Test
+    void displayedSlotFramesAndFunctionalSlotsShareTheSameLayout() {
+        assertEquals(80, JetpackFuelMenu.FUEL_SLOT_X);
+        assertEquals(64, JetpackFuelMenu.FUEL_SLOT_Y);
+        assertEquals(102, JetpackFuelMenu.INVENTORY_SLOT_START_Y);
+        assertEquals(156, JetpackFuelMenu.HOTBAR_SLOT_Y);
     }
 
     @Test
@@ -151,4 +184,3 @@ class JetpackFuelingTest {
         assertEquals(0.0D, JetpackFueling.energyForBurnTicks(-20), 0.000001D);
     }
 }
-

@@ -16,6 +16,10 @@ import net.minecraft.nbt.CompoundTag;
 import java.util.UUID;
 
 public final class JetpackFuelMenu extends AbstractContainerMenu {
+    public static final int FUEL_SLOT_X = 80;
+    public static final int FUEL_SLOT_Y = 64;
+    public static final int INVENTORY_SLOT_START_Y = 102;
+    public static final int HOTBAR_SLOT_Y = 156;
     private final Inventory playerInventory;
     private final UUID jetpackId;
     private final ItemStack clientSnapshot;
@@ -37,15 +41,15 @@ public final class JetpackFuelMenu extends AbstractContainerMenu {
         this.jetpackId = jetpackId;
         this.clientSnapshot = snapshot.copy();
 
-        this.addSlot(new Slot(new FuelSlotContainer(inventory.player, jetpackId), 0, 80, 54) {
+        this.addSlot(new Slot(new FuelSlotContainer(inventory.player, jetpackId), 0, FUEL_SLOT_X, FUEL_SLOT_Y) {
             @Override public boolean mayPlace(ItemStack stack) { return JetpackFueling.isFuel(stack); }
             @Override public int getMaxStackSize() { return 64; }
         });
 
         for (int row = 0; row < 3; row++)
             for (int col = 0; col < 9; col++)
-                this.addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
-        for (int col = 0; col < 9; col++) this.addSlot(new Slot(inventory, col, 8 + col * 18, 142));
+                this.addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, INVENTORY_SLOT_START_Y + row * 18));
+        for (int col = 0; col < 9; col++) this.addSlot(new Slot(inventory, col, 8 + col * 18, HOTBAR_SLOT_Y));
 
         this.addDataSlot(new DataSlot() {
             @Override public int get() { return getHost().isEmpty() ? 0 : JetpackItem.energy(getHost()); }
@@ -112,8 +116,13 @@ public final class JetpackFuelMenu extends AbstractContainerMenu {
             return removed;
         }
         @Override public ItemStack removeItemNoUpdate(int slot) { ItemStack fuel = getItem(slot); JetpackFueling.setFuel(player, id, ItemStack.EMPTY); return fuel; }
-        @Override public void setItem(int slot, ItemStack stack) { if (slot == 0) JetpackFueling.setFuel(player, id, stack); }
-        @Override public void setChanged() {}
+        @Override public void setItem(int slot, ItemStack stack) {
+            if (slot == 0) JetpackFueling.setFuel(player, id, stack);
+        }
+        @Override public void setChanged() {
+            player.getInventory().setChanged();
+            if (player.containerMenu != null) player.containerMenu.broadcastChanges();
+        }
         @Override public boolean stillValid(Player player) { return this.player == player && !host().isEmpty(); }
         @Override public void clearContent() { JetpackFueling.setFuel(player, id, ItemStack.EMPTY); }
     }

@@ -43,6 +43,20 @@ public final class JetpackFueling {
         return fuelEnergy * consumedBurnTicks / totalBurnTicks;
     }
 
+    /**
+     * Adds this tick's duration-proportional fuel credit to its persisted fractional carry.
+     * Cached legacy burn values are deliberately excluded: duration is the source of truth.
+     */
+    public static double accumulatedCreditForGameTick(int totalBurnTicks, int burnTicksLeft, double savedFraction) {
+        double budget = energyForBurnTicks(totalBurnTicks);
+        double credit = energyForGameTick(budget, totalBurnTicks, burnTicksLeft);
+        // For coal/charcoal the accelerated credit per game tick is stable (30 FE).
+        // Any larger carry could not have been produced by a valid prior tick.
+        if (!Double.isFinite(savedFraction) || savedFraction < 0.0D || savedFraction > credit + 1.0E-7D)
+            savedFraction = 0.0D;
+        return savedFraction + credit;
+    }
+
     /** A fresh coal is only started at or below 95%; a running coal may finish its burn. */
     public static boolean mayConsumeNextFuel(int energy) {
         return energy <= REFUEL_THRESHOLD;
@@ -91,11 +105,13 @@ public final class JetpackFueling {
         ItemStack equipped = JetpackEquipment.get(player);
         if (matches(equipped, id)) {
             JetpackEquipment.save(player, host);
+            player.getInventory().setChanged();
             return;
         }
         for (int i = 0; i < player.getInventory().items.size(); i++) {
             if (matches(player.getInventory().items.get(i), id)) {
                 player.getInventory().setItem(i, host);
+                player.getInventory().setChanged();
                 return;
             }
         }
@@ -138,8 +154,7 @@ public final class JetpackFueling {
 
         int left = tag.getInt(BURN_LEFT);
         int total = tag.getInt(BURN_TOTAL);
-        double budget = tag.getDouble(BURN_VALUE);
-        if (left <= 0) {
+        if (left <= 0 || total <= 0 || left > total) {
             // Keep a stack of fuel in the jetpack's slot storage while the pack is
             // charged. One item is moved into the burn state only when the charge
             // has fallen to the 95% refill point.
@@ -152,16 +167,13 @@ public final class JetpackFueling {
             if (fuel.isEmpty()) tag.remove(FUEL_TAG);
             else tag.put(FUEL_TAG, fuel.save(new CompoundTag()));
             left = total = burnTicks;
-            // Keep the whole fuel value as pending burn energy. If the pack fills
-            // partway through a coal, the remaining burn and fractional ER stay on
-            // the item and resume after energy is used; the fuel is never silently
-            // discarded at the capacity boundary.
-            budget = energyForBurnTicks(burnTicks);
         }
 
+        // Derive credit from the real burn duration every tick. Never trust an
+        // oversized cached BURN_VALUE on legacy item NBT: 1600 coal burn ticks = 300 FE.
+        double budget = energyForBurnTicks(total);
         int consumedBurnTicks = Math.min(BURN_TICKS_PER_GAME_TICK, left);
-        double fraction = tag.getDouble(BURN_FRACTION)
-                + energyForGameTick(budget, total, left);
+        double fraction = accumulatedCreditForGameTick(total, left, tag.getDouble(BURN_FRACTION));
         int whole = (int) fraction;
         if (whole > 0) {
             int received = JetpackItem.receive(host, whole, false);
