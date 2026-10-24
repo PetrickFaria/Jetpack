@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 6108)
-Total output lines: 470
-
 package br.com.petrickfaria.jetpack.player;
 
 import br.com.petrickfaria.jetpack.item.JetpackItem;
@@ -228,7 +225,16 @@ public final class JetpackFlight {
             return;
         }
         JetpackEquipment.save(player, pack);
-        if (player instanceof ServerPlayer serverPlayer && serverPlayer.tickCount % 2 =…108 tokens truncated…tpackItem) || JetpackItem.energy(pack) <= 0) return;
+        if (player instanceof ServerPlayer serverPlayer && serverPlayer.tickCount % 2 == 0)
+            emitThrusterParticles(serverPlayer);
+        player.fallDistance = 0;
+    }
+
+    /** Slow, energy-backed descent while the main flight toggle is off. */
+    private static void tickControlledDescent(Player player, net.minecraft.nbt.CompoundTag state) {
+        if (!state.getBoolean("down") || player.isOnGround()) return;
+        var pack = JetpackEquipment.get(player);
+        if (!(pack.getItem() instanceof JetpackItem) || JetpackItem.energy(pack) <= 0) return;
         Vec3 motion = player.getDeltaMovement();
         Vec3 adjusted = controlledDescentMotion(motion, true, false,
                 state.getFloat("strafe"), state.getFloat("forward"), player.getYRot());
