@@ -19,7 +19,7 @@ public final class JetpackFuelMenu extends AbstractContainerMenu {
     public static final int FUEL_SLOT_X = 80;
     public static final int FUEL_SLOT_Y = 76;
     public static final int INVENTORY_SLOT_START_Y = 112;
-    public static final int HOTBAR_SLOT_Y = 166;
+    public static final int HOTBAR_SLOT_Y = 170;
     private final Inventory playerInventory;
     private final UUID jetpackId;
     private final ItemStack clientSnapshot;

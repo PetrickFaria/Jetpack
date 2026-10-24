@@ -83,7 +83,7 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
         fill(pose, x + 8, y + 107, x + imageWidth - 8, y + 108, palette.highlight());
 
         // Slot wells align with the functional menu hitboxes.
-        for (int[] corner : new int[][] {{7, 7}, {imageWidth - 10, 7}, {7, imageHeight - 10}, {imageWidth - 10, imageHeight - 10}}) {
+        for (int[] corner : new int[][] {{7, 7}, {imageWidth - 10, 7}}) {
             fill(pose, x + corner[0], y + corner[1], x + corner[0] + 2, y + corner[1] + 2, palette.highlight());
             fill(pose, x + corner[0], y + corner[1] + 1, x + corner[0] + 2, y + corner[1] + 2, palette.accentDark());
         }

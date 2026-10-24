@@ -90,7 +90,7 @@ class JetpackFuelingTest {
         assertEquals(80, JetpackFuelMenu.FUEL_SLOT_X);
         assertEquals(76, JetpackFuelMenu.FUEL_SLOT_Y);
         assertEquals(112, JetpackFuelMenu.INVENTORY_SLOT_START_Y);
-        assertEquals(166, JetpackFuelMenu.HOTBAR_SLOT_Y);
+        assertEquals(170, JetpackFuelMenu.HOTBAR_SLOT_Y);
     }
 
     @Test
