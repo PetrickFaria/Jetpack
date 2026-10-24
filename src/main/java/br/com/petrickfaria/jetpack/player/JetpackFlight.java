@@ -38,7 +38,7 @@ public final class JetpackFlight {
     // ascent displacement converges to input / (1 - 0.6).
     private static final double CREATIVE_VERTICAL_INPUT_MULTIPLIER = 3.0D;
     private static final double CREATIVE_VERTICAL_RETAINED_SPEED = 0.6D;
-    private static final double TERRAIN_CORRECTION_ACCELERATION = 0.06D;
+    public static final double TERRAIN_CORRECTION_ACCELERATION = 0.06D;
     private static final float CREATIVE_FLY_SPEED = 0.05F;
     private static final DustParticleOptions RED_THRUST =
             new DustParticleOptions(new Vector3f(0.95F, 0.025F, 0.015F), 0.8F);
@@ -213,7 +213,7 @@ public final class JetpackFlight {
                     player.getY(), ceiling, ascentSpeed);
         }
         if (!constrained.equals(motion)) player.setDeltaMovement(constrained);
-        enforceCeilingPosition(player, ceiling);
+        if (!state.getBoolean("terrainCorrection")) enforceCeilingPosition(player, ceiling);
         if (player instanceof ServerPlayer serverPlayer) {
             enforceServerCeilingPosition(serverPlayer, state, ceiling);
             state.putDouble("lastFlightY", serverPlayer.getY());
@@ -260,8 +260,9 @@ public final class JetpackFlight {
                                                           double remainingHeight, double acceleration) {
         if (remainingHeight <= 0.0D || ascentSpeed <= 0.0D || acceleration <= 0.0D) return 0.0D;
         double target = -Math.min(ascentSpeed, remainingHeight);
-        if (currentVelocity > target) return Math.max(target, currentVelocity - acceleration);
-        return Math.min(target, currentVelocity + acceleration);
+        double eased = currentVelocity > target ? Math.max(target, currentVelocity - acceleration)
+                : Math.min(target, currentVelocity + acceleration);
+        return Math.max(-remainingHeight, eased);
     }
 
     public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround,
@@ -330,15 +331,9 @@ public final class JetpackFlight {
                                                        double ceiling) {
         double y = player.getY();
         boolean gradualTerrainCorrection = state.getBoolean("terrainCorrection");
-        if (gradualTerrainCorrection && y - ceiling > CEILING_POSITION_TOLERANCE) {
-            double previousY = state.getDouble("lastFlightY");
-            if (state.contains("lastFlightY") && y > previousY + 1.0E-4D) {
-                Vec3 motion = player.getDeltaMovement();
-                player.setDeltaMovement(motion.x, 0.0D, motion.z);
-                player.teleportTo(player.getX(), previousY, player.getZ());
-            }
-            return;
-        }
+        // Terrain changes converge through vertical motion. A teleport here pauses
+        // client movement while it acknowledges the position correction packet.
+        if (gradualTerrainCorrection) return;
         double correctedY = authoritativeCeilingY(y, ceiling, false);
         if (correctedY == y) return;
         Vec3 motion = player.getDeltaMovement();

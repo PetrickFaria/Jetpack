@@ -20,6 +20,8 @@ public final class JetpackClientInput {
     private static long previousJumpAt;
     private static double lastFlightY = Double.NaN;
     private static double measuredAscentSpeed;
+    private static double previousCeiling = Double.NaN, terrainVelocity;
+    private static boolean terrainCorrecting;
 
     @SubscribeEvent
     public static void onMovementInput(MovementInputUpdateEvent event) {
@@ -85,13 +87,28 @@ public final class JetpackClientInput {
             double ascentSpeed = measuredAscentSpeed > 0.0D ? measuredAscentSpeed
                     : JetpackFlight.creativeSteadyAscentSpeed(mc.player.getAbilities().getFlyingSpeed());
             Vec3 motion = mc.player.getDeltaMovement();
-            Vec3 constrained = JetpackFlight.constrainFlightMotion(motion, down, mc.player.isOnGround(),
-                    y, flight.ceiling(), ascentSpeed);
+            if (Double.isFinite(previousCeiling) && flight.ceiling() < previousCeiling - 1.0E-4D
+                    && y > flight.ceiling()) {
+                if (!terrainCorrecting) terrainVelocity = Math.min(0.0D, motion.y);
+                terrainCorrecting = true;
+            }
+            if (y <= flight.ceiling()) { terrainCorrecting = false; terrainVelocity = 0.0D; }
+            Vec3 constrained;
+            if (terrainCorrecting) {
+                terrainVelocity = JetpackFlight.smoothTerrainCorrectionVelocity(terrainVelocity,
+                        ascentSpeed, y - flight.ceiling(), JetpackFlight.TERRAIN_CORRECTION_ACCELERATION);
+                constrained = new Vec3(motion.x, terrainVelocity, motion.z);
+            } else {
+                constrained = JetpackFlight.constrainFlightMotion(motion, down, mc.player.isOnGround(),
+                        y, flight.ceiling(), ascentSpeed);
+            }
             if (!constrained.equals(motion)) mc.player.setDeltaMovement(constrained);
-            JetpackFlight.enforceCeilingPosition(mc.player, flight.ceiling());
+            if (!terrainCorrecting) JetpackFlight.enforceCeilingPosition(mc.player, flight.ceiling());
+            previousCeiling = flight.ceiling();
             previousFlightActive = true;
             lastFlightY = mc.player.getY();
         } else {
+            previousCeiling = Double.NaN; terrainCorrecting = false; terrainVelocity = 0.0D;
             previousFlightActive = false;
             lastFlightY = Double.NaN;
             measuredAscentSpeed = 0.0D;

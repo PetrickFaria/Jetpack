@@ -89,6 +89,8 @@ public final class JetpackClientSounds {
             updatePosition();
         }
 
+        @Override public boolean canStartSilent() { return true; }
+
         private void fadeOut() { fadingOut = true; }
         private void resume() { fadingOut = false; }
 
