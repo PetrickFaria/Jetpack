@@ -88,9 +88,9 @@ class JetpackFuelingTest {
     @Test
     void displayedSlotFramesAndFunctionalSlotsShareTheSameLayout() {
         assertEquals(80, JetpackFuelMenu.FUEL_SLOT_X);
-        assertEquals(64, JetpackFuelMenu.FUEL_SLOT_Y);
-        assertEquals(102, JetpackFuelMenu.INVENTORY_SLOT_START_Y);
-        assertEquals(156, JetpackFuelMenu.HOTBAR_SLOT_Y);
+        assertEquals(76, JetpackFuelMenu.FUEL_SLOT_Y);
+        assertEquals(112, JetpackFuelMenu.INVENTORY_SLOT_START_Y);
+        assertEquals(166, JetpackFuelMenu.HOTBAR_SLOT_Y);
     }
 
     @Test
