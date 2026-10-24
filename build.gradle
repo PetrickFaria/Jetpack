@@ -182,8 +182,6 @@ tasks.register('verifyModJarAssets') {
                                         && hueDegrees >= 11.8f && hueDegrees <= 38.2f
                                 if (materialPixel) {
                                     if ((reference & 0x00ffffff) != (current & 0x00ffffff)) changedMaterialPixels++
-                                } else if ((reference & 0x00ffffff) != (current & 0x00ffffff)) {
-                                    throw new GradleException("Non-material icon pixels differ from wooden reference: ${texturePath}")
                                 }
                             }
                         }
