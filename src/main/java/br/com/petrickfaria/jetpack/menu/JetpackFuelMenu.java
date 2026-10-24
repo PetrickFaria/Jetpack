@@ -103,27 +103,48 @@ public final class JetpackFuelMenu extends AbstractContainerMenu {
     private static final class FuelSlotContainer implements Container {
         private final Player player;
         private final UUID id;
+        // A menu slot is synchronized via vanilla SetSlot packets. The client must
+        // retain that synchronized stack: the server-side jetpack NBT is not a
+        // reliable source for rendering the fuel slot on the client.
+        private ItemStack clientFuel = ItemStack.EMPTY;
+
         FuelSlotContainer(Player player, UUID id) { this.player = player; this.id = id; }
         private ItemStack host() { return JetpackFueling.findHost(player, id); }
         @Override public int getContainerSize() { return 1; }
-        @Override public boolean isEmpty() { return JetpackFueling.getFuel(host()).isEmpty(); }
-        @Override public ItemStack getItem(int slot) { return slot == 0 ? JetpackFueling.getFuel(host()) : ItemStack.EMPTY; }
+        @Override public boolean isEmpty() { return getItem(0).isEmpty(); }
+        @Override public ItemStack getItem(int slot) {
+            if (slot != 0) return ItemStack.EMPTY;
+            return player.level.isClientSide ? clientFuel : JetpackFueling.getFuel(host());
+        }
         @Override public ItemStack removeItem(int slot, int amount) {
             ItemStack fuel = getItem(slot);
             if (fuel.isEmpty()) return ItemStack.EMPTY;
             ItemStack removed = fuel.split(amount);
-            JetpackFueling.setFuel(player, id, fuel);
+            setItem(slot, fuel);
             return removed;
         }
-        @Override public ItemStack removeItemNoUpdate(int slot) { ItemStack fuel = getItem(slot); JetpackFueling.setFuel(player, id, ItemStack.EMPTY); return fuel; }
+        @Override public ItemStack removeItemNoUpdate(int slot) {
+            ItemStack fuel = getItem(slot);
+            setItem(slot, ItemStack.EMPTY);
+            return fuel;
+        }
         @Override public void setItem(int slot, ItemStack stack) {
-            if (slot == 0) JetpackFueling.setFuel(player, id, stack);
+            if (slot != 0) return;
+            if (player.level.isClientSide) {
+                // SetSlot updates go here, so the coal icon and stack count remain visible.
+                clientFuel = stack.copy();
+            } else {
+                // The server alone persists fuel and consumes coal for charging.
+                JetpackFueling.setFuel(player, id, stack);
+            }
         }
         @Override public void setChanged() {
-            player.getInventory().setChanged();
-            if (player.containerMenu != null) player.containerMenu.broadcastChanges();
+            if (!player.level.isClientSide) {
+                player.getInventory().setChanged();
+                if (player.containerMenu != null) player.containerMenu.broadcastChanges();
+            }
         }
         @Override public boolean stillValid(Player player) { return this.player == player && !host().isEmpty(); }
-        @Override public void clearContent() { JetpackFueling.setFuel(player, id, ItemStack.EMPTY); }
+        @Override public void clearContent() { setItem(0, ItemStack.EMPTY); }
     }
 }
