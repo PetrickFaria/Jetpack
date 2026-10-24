@@ -4,7 +4,8 @@
     "parent": "minecraft:item/generated",
     "textures": {
       "layer0": "jetpack:item/jetpack_emerald"
-    }
+    },
+    "gui_light": "front"
   },
   "perspectives": {
     "firstperson_righthand": {
@@ -19,5 +20,6 @@
     "thirdperson_lefthand": {
       "parent": "jetpack:item/jetpack_emerald_hand"
     }
-  }
+  },
+  "gui_light": "front"
 }

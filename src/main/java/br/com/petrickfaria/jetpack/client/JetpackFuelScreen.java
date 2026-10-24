@@ -65,22 +65,24 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
         // Fuel chamber: burner is separated from the actual clickable fuel slot.
         fill(pose, x + 5, y + 61, x + imageWidth - 5, y + 97, palette.panel());
         fill(pose, x + 5, y + 61, x + imageWidth - 5, y + 62, palette.highlight());
-        fill(pose, x + 75, y + 63, x + 101, y + 77, palette.accentDark());
-        fill(pose, x + 76, y + 64, x + 100, y + 76, palette.inset());
-        fill(pose, x + 77, y + 64, x + 99, y + 65, palette.highlight());
-        fill(pose, x + 78, y + 76, x + 98, y + 77, palette.outer());
         if (menu.burnLeft() > 0 && menu.burnTotal() > 0) {
             int flameHeight = Math.max(1, Math.min(13,
                     (int) Math.ceil(13.0D * menu.burnLeft() / menu.burnTotal())));
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             RenderSystem.setShaderTexture(0, FURNACE_TEXTURE);
-            blit(pose, x + 82, y + 76 - flameHeight, 176, 13 - flameHeight, 14, flameHeight);
+            blit(pose, x + JetpackFuelMenu.FUEL_SLOT_X + 1,
+                    y + JetpackFuelMenu.FUEL_SLOT_Y - 2 - flameHeight,
+                    176, 13 - flameHeight, 14, flameHeight);
+            RenderSystem.disableBlend();
         }
 
         // Distinct inventory header and lower well keep the grid visually grounded.
         fill(pose, x + 5, y + 99, x + imageWidth - 5, y + 100, palette.rim());
         fill(pose, x + 5, y + 103, x + imageWidth - 5, y + imageHeight - 5, palette.inset());
-        fill(pose, x + 8, y + 107, x + imageWidth - 8, y + imageHeight - 6, palette.panel());
-        fill(pose, x + 8, y + 107, x + imageWidth - 8, y + 108, palette.highlight());
+        fill(pose, x + 8, y + 110, x + imageWidth - 8, y + imageHeight - 6, palette.panel());
+        fill(pose, x + 8, y + 110, x + imageWidth - 8, y + 111, palette.highlight());
 
         // Slot wells align with the functional menu hitboxes.
         for (int[] corner : new int[][] {{7, 7}, {imageWidth - 10, 7}}) {
@@ -106,7 +108,6 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
         this.font.draw(pose, "ER", 18, 44, 0xFFF8F6EE);
         String percent = Math.round(menu.energy() * 100.0F / JetpackItem.CAPACITY) + "%";
         this.font.draw(pose, percent, 137, 44, 0xFFF8F6EE);
-        this.font.draw(pose, "Combustível", 13, 73, palette.subtitle());
         this.font.draw(pose, "Inventário", this.inventoryLabelX, this.inventoryLabelY, 0xFFE0DDD4);
     }
 
