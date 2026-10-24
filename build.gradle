@@ -273,6 +273,26 @@ tasks.register('verifyModJarAssets') {
             } finally {
                 oggInput.close()
             }
+            def flamePath = 'assets/jetpack/textures/gui/furnace_flame.png'
+            def flameEntry = archive.getEntry(flamePath)
+            if (flameEntry == null) throw new GradleException('Missing transparent furnace flame')
+            def flame = javax.imageio.ImageIO.read(archive.getInputStream(flameEntry))
+            if (flame.width != 14 || flame.height != 14 || !flame.colorModel.hasAlpha())
+                throw new GradleException('Invalid furnace flame dimensions or alpha')
+            int transparentFlamePixels = 0
+            int visibleFlamePixels = 0
+            for (int y = 0; y < 14; y++) for (int x = 0; x < 14; x++) {
+                int pixel = flame.getRGB(x, y)
+                if ((pixel >>> 24) == 0) transparentFlamePixels++
+                else {
+                    visibleFlamePixels++
+                    int rgb = pixel & 0xffffff
+                    if (rgb == 0xc6c6c6 || rgb == 0x8b8b8b)
+                        throw new GradleException('Opaque vanilla gray background remains in flame')
+                }
+            }
+            if (transparentFlamePixels != 113 || visibleFlamePixels != 83)
+                throw new GradleException('Furnace flame artwork/background mask changed unexpectedly')
             logger.lifecycle("Verified pack.mcmeta, six inventory icons, six hand models/textures, six back UV atlases, and turbine sound in ${jarFile.name}")
         } finally {
             archive.close()

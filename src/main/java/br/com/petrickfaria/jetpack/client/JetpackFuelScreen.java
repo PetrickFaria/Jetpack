@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuelMenu> {
-    private static final ResourceLocation FURNACE_TEXTURE = new ResourceLocation("textures/gui/container/furnace.png");
+    private static final ResourceLocation FURNACE_TEXTURE = new ResourceLocation("jetpack", "textures/gui/furnace_flame.png");
     public JetpackFuelScreen(JetpackFuelMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageWidth = 176;
@@ -74,7 +74,7 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
             RenderSystem.setShaderTexture(0, FURNACE_TEXTURE);
             blit(pose, x + JetpackFuelMenu.FUEL_SLOT_X + 1,
                     y + JetpackFuelMenu.FUEL_SLOT_Y - 2 - flameHeight,
-                    176, 13 - flameHeight, 14, flameHeight);
+                    0, 13 - flameHeight, 14, flameHeight, 14, 14);
             RenderSystem.disableBlend();
         }
 

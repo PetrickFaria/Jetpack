@@ -8,6 +8,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
@@ -400,7 +401,7 @@ public final class JetpackFlight {
 
     /**
      * Highest physical support surface directly beneath the player's horizontal center.
-     * Full blocks, slabs, stairs and waterlogged solids qualify; fluid-only blocks and leaves do not.
+     * Solid collision surfaces and the actual water surface qualify; leaves alone do not.
      */
     public static double findSurfaceBelow(Player player) {
         int x = Mth.floor(player.getX());
@@ -415,10 +416,15 @@ public final class JetpackFlight {
         for (int y = startY; y >= minY; y--) {
             pos.set(x, y, z);
             BlockState block = player.level.getBlockState(pos);
-            if (block.isAir() || block.is(BlockTags.LEAVES)) continue;
+            var fluid = player.level.getFluidState(pos);
+            double highestTopInBlock = fluid.is(FluidTags.WATER)
+                    ? waterSurfaceBelowFeet(y, fluid.getHeight(player.level, pos), feetY)
+                    : Double.NEGATIVE_INFINITY;
+            if (block.isAir() || block.is(BlockTags.LEAVES)) {
+                if (Double.isFinite(highestTopInBlock)) return highestTopInBlock;
+                continue;
+            }
             VoxelShape shape = block.getCollisionShape(player.level, pos);
-            if (shape.isEmpty()) continue;
-            double highestTopInBlock = Double.NEGATIVE_INFINITY;
             for (AABB box : shape.toAabbs()) {
                 if (localX + 1.0E-5D < box.minX || localX - 1.0E-5D > box.maxX
                         || localZ + 1.0E-5D < box.minZ || localZ - 1.0E-5D > box.maxZ) continue;
@@ -428,6 +434,13 @@ public final class JetpackFlight {
             if (Double.isFinite(highestTopInBlock)) return highestTopInBlock;
         }
         return Double.NaN;
+    }
+
+    /** Uses the fluid's local surface height, never the floor beneath its column. */
+    public static double waterSurfaceBelowFeet(int blockY, double fluidHeight, double feetY) {
+        double top = blockY + fluidHeight;
+        return fluidHeight > 0.0D && fluidHeight <= 1.0D && top <= feetY
+                ? top : Double.NEGATIVE_INFINITY;
     }
 
     private static net.minecraft.nbt.CompoundTag state(Player player) {
