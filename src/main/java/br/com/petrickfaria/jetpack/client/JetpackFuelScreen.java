@@ -14,8 +14,8 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
     public JetpackFuelScreen(JetpackFuelMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageWidth = 176;
-        this.imageHeight = 184;
-        this.inventoryLabelY = 90;
+        this.imageHeight = 194;
+        this.inventoryLabelY = 101;
     }
 
     @Override
@@ -24,25 +24,28 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
         int y = this.topPos;
         Palette palette = palette();
 
-        // Balanced panel zones: title, ER meter, furnace burner and player inventory.
+        // A roomier layout separates the title, ER meter, burner and player inventory.
         fill(pose, x, y, x + imageWidth, y + imageHeight, palette.outer());
         fill(pose, x + 1, y + 1, x + imageWidth - 1, y + imageHeight - 1, palette.rim());
         fill(pose, x + 2, y + 2, x + imageWidth - 2, y + imageHeight - 2, palette.inset());
         fill(pose, x + 4, y + 4, x + imageWidth - 4, y + imageHeight - 4, palette.surface());
 
-        // Centered title plaque.
-        fill(pose, x + 5, y + 5, x + imageWidth - 5, y + 30, palette.header());
-        fill(pose, x + 29, y + 5, x + 147, y + 30, palette.accentDark());
-        fill(pose, x + 30, y + 6, x + 146, y + 29, palette.rim());
-        fill(pose, x + 31, y + 7, x + 145, y + 28, palette.header());
-        fill(pose, x + 35, y + 26, x + 141, y + 27, palette.highlight());
-        fill(pose, x + 5, y + 30, x + imageWidth - 5, y + 31, palette.accent());
+        // Centered title plaque with a clean inset and small material-colored end caps.
+        fill(pose, x + 5, y + 5, x + imageWidth - 5, y + 35, palette.header());
+        fill(pose, x + 22, y + 5, x + 154, y + 34, palette.accentDark());
+        fill(pose, x + 23, y + 6, x + 153, y + 33, palette.rim());
+        fill(pose, x + 25, y + 8, x + 151, y + 32, palette.header());
+        fill(pose, x + 32, y + 30, x + 144, y + 31, palette.highlight());
+        fill(pose, x + 5, y + 35, x + imageWidth - 5, y + 36, palette.accent());
+        fill(pose, x + 7, y + 7, x + 10, y + 10, palette.highlight());
+        fill(pose, x + imageWidth - 10, y + 7, x + imageWidth - 7, y + 10, palette.highlight());
 
-        // ER meter sits in its own shallow panel.
-        fill(pose, x + 8, y + 32, x + imageWidth - 8, y + 44, palette.panel());
-        fill(pose, x + 8, y + 32, x + imageWidth - 8, y + 33, palette.highlight());
+        // ER meter has a deeper tray and a centered bar with legible side labels.
+        fill(pose, x + 8, y + 38, x + imageWidth - 8, y + 59, palette.panel());
+        fill(pose, x + 8, y + 38, x + imageWidth - 8, y + 39, palette.highlight());
+        fill(pose, x + 10, y + 56, x + imageWidth - 10, y + 57, palette.accentDark());
         int bx = x + 46;
-        int by = y + 35;
+        int by = y + 45;
         fill(pose, bx - 3, by - 2, bx + 87, by + 8, 0xFF1A1D20);
         fill(pose, bx - 2, by - 1, bx + 86, by + 7, 0xFF9AA1A3);
         fill(pose, bx - 1, by, bx + 85, by + 6, 0xFF25292D);
@@ -59,23 +62,25 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
             if (tickX < bx + 1 + width) fill(pose, tickX, by + 3, tickX + 1, by + 5, 0xFF762020);
         }
 
-        // Reuse the vanilla furnace flame from its GUI atlas with the same upward
-        // crop and burn-progress behavior used by the regular furnace screen.
-        fill(pose, x + 5, y + 44, x + imageWidth - 5, y + 63, palette.panel());
-        fill(pose, x + 5, y + 44, x + imageWidth - 5, y + 45, palette.highlight());
-        fill(pose, x + 77, y + 44, x + 99, y + 62, palette.accentDark());
-        fill(pose, x + 78, y + 45, x + 98, y + 46, palette.highlight());
-        fill(pose, x + 79, y + 60, x + 97, y + 61, palette.outer());
+        // Fuel chamber: burner is separated from the actual clickable fuel slot.
+        fill(pose, x + 5, y + 61, x + imageWidth - 5, y + 97, palette.panel());
+        fill(pose, x + 5, y + 61, x + imageWidth - 5, y + 62, palette.highlight());
+        fill(pose, x + 75, y + 63, x + 101, y + 77, palette.accentDark());
+        fill(pose, x + 76, y + 64, x + 100, y + 76, palette.inset());
+        fill(pose, x + 77, y + 64, x + 99, y + 65, palette.highlight());
+        fill(pose, x + 78, y + 76, x + 98, y + 77, palette.outer());
         if (menu.burnLeft() > 0 && menu.burnTotal() > 0) {
             int flameHeight = Math.max(1, Math.min(13,
                     (int) Math.ceil(13.0D * menu.burnLeft() / menu.burnTotal())));
             RenderSystem.setShaderTexture(0, FURNACE_TEXTURE);
-            blit(pose, x + 82, y + 59 - flameHeight, 176, 13 - flameHeight, 14, flameHeight);
+            blit(pose, x + 82, y + 76 - flameHeight, 176, 13 - flameHeight, 14, flameHeight);
         }
 
-        fill(pose, x + 5, y + 84, x + imageWidth - 5, y + 85, palette.rim());
-        fill(pose, x + 5, y + 88, x + imageWidth - 5, y + imageHeight - 5, palette.inset());
-        fill(pose, x + 8, y + 91, x + imageWidth - 8, y + imageHeight - 6, palette.panel());
+        // Distinct inventory header and lower well keep the grid visually grounded.
+        fill(pose, x + 5, y + 99, x + imageWidth - 5, y + 100, palette.rim());
+        fill(pose, x + 5, y + 103, x + imageWidth - 5, y + imageHeight - 5, palette.inset());
+        fill(pose, x + 8, y + 107, x + imageWidth - 8, y + imageHeight - 6, palette.panel());
+        fill(pose, x + 8, y + 107, x + imageWidth - 8, y + 108, palette.highlight());
 
         // Slot wells align with the functional menu hitboxes.
         for (int[] corner : new int[][] {{7, 7}, {imageWidth - 10, 7}, {7, imageHeight - 10}, {imageWidth - 10, imageHeight - 10}}) {
@@ -96,11 +101,12 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
         Palette palette = palette();
         String title = "Jetpack";
         String subtitle = "(" + menu.materialName() + ")";
-        this.font.draw(pose, title, (this.imageWidth - this.font.width(title)) / 2, 8, 0xFFF8F6EE);
-        this.font.draw(pose, subtitle, (this.imageWidth - this.font.width(subtitle)) / 2, 18, palette.subtitle());
-        this.font.draw(pose, "ER", 18, 36, 0xFFF8F6EE);
+        this.font.draw(pose, title, (this.imageWidth - this.font.width(title)) / 2, 10, 0xFFF8F6EE);
+        this.font.draw(pose, subtitle, (this.imageWidth - this.font.width(subtitle)) / 2, 21, palette.subtitle());
+        this.font.draw(pose, "ER", 18, 44, 0xFFF8F6EE);
         String percent = Math.round(menu.energy() * 100.0F / JetpackItem.CAPACITY) + "%";
-        this.font.draw(pose, percent, 137, 36, 0xFFF8F6EE);
+        this.font.draw(pose, percent, 137, 44, 0xFFF8F6EE);
+        this.font.draw(pose, "Combustível", 13, 73, palette.subtitle());
         this.font.draw(pose, "Inventário", this.inventoryLabelX, this.inventoryLabelY, 0xFFE0DDD4);
     }
 
