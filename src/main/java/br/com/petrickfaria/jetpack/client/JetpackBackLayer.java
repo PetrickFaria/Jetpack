@@ -30,7 +30,8 @@ public final class JetpackBackLayer extends RenderLayer<AbstractClientPlayer, Pl
         if (!(stack.getItem() instanceof JetpackItem)) return;
         ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
         if (id == null) return;
-        ResourceLocation texture = new ResourceLocation(id.getNamespace(), "textures/entity/" + id.getPath() + ".png");
+        ResourceLocation texture = new ResourceLocation(id.getNamespace(),
+                "textures/entity/back/" + id.getPath() + ".png");
 
         poseStack.pushPose();
         getParentModel().body.translateAndRotate(poseStack);

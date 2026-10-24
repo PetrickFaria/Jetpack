@@ -1,6 +1,23 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "jetpack:item/jetpack_iron"
+  "loader": "forge:separate_transforms",
+  "base": {
+    "parent": "minecraft:item/generated",
+    "textures": {
+      "layer0": "jetpack:item/jetpack_iron"
+    }
+  },
+  "perspectives": {
+    "firstperson_righthand": {
+      "parent": "jetpack:item/jetpack_iron_hand"
+    },
+    "firstperson_lefthand": {
+      "parent": "jetpack:item/jetpack_iron_hand"
+    },
+    "thirdperson_righthand": {
+      "parent": "jetpack:item/jetpack_iron_hand"
+    },
+    "thirdperson_lefthand": {
+      "parent": "jetpack:item/jetpack_iron_hand"
+    }
   }
 }
