@@ -91,6 +91,34 @@ class JetpackFlightTest {
     }
 
     @Test
+    void terrainCorrectionEasesIntoCreativeSpeedAndStopsAtTheCeilingForEveryTier() {
+        double creativeSpeed = JetpackFlight.creativeSteadyAscentSpeed((double) 0.05F);
+        for (int maximumHeight : new int[] {5, 10, 15, 20, 25, 50}) {
+            double ceiling = JetpackFlight.altitudeCeiling(64.0D, maximumHeight);
+            double y = ceiling + 3.0D;
+            double velocity = 0.0D;
+            int ticks = 0;
+            boolean reachedCruiseSpeed = false;
+            while (y > ceiling && ticks < 100) {
+                double remaining = y - ceiling;
+                velocity = JetpackFlight.smoothTerrainCorrectionVelocity(
+                        velocity, creativeSpeed, remaining, 0.06D);
+                assertTrue(velocity <= 0.0D, "correction never rises, tier " + maximumHeight);
+                if (remaining > creativeSpeed && Math.abs(velocity + creativeSpeed) < 1.0E-12D)
+                    reachedCruiseSpeed = true;
+                double step = Math.max(velocity, ceiling - y);
+                y += step;
+                ticks++;
+            }
+            assertTrue(ticks >= 6, "entry is eased over several ticks, tier " + maximumHeight);
+            assertTrue(reachedCruiseSpeed, "correction reaches the original Creative target speed, tier " + maximumHeight);
+            assertEquals(ceiling, y, 1.0E-12D, "no height overshoot, tier " + maximumHeight);
+            assertEquals(0.0D, JetpackFlight.smoothTerrainCorrectionVelocity(
+                    velocity, creativeSpeed, 0.0D, 0.06D), 0.0D);
+        }
+    }
+
+    @Test
     void correctionUsesMeasuredAscentRatherThanTheConfiguredFlySpeed() {
         Vec3 adjusted = JetpackFlight.constrainFlightMotion(
                 new Vec3(0.0D, 0.0D, 0.0D), false, false, 75.0D, 70.0D, 0.36D);

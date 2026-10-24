@@ -33,6 +33,20 @@ public final class JetpackBackModel {
                 .addBox(2.3F, -10.4F, 1.4F, 2.7F, 8.4F, 3.4F), PartPose.ZERO);
         pack.addOrReplaceChild("top_bridge", CubeListBuilder.create().texOffs(63, 33)
                 .addBox(-2.4F, -11.6F, 2.0F, 4.8F, 2.0F, 3.0F), PartPose.ZERO);
+        // Raised crown and side rails give the frame a layered, machined silhouette
+        // while staying inside the torso outline and using the existing tier texture.
+        pack.addOrReplaceChild("crown_cap", CubeListBuilder.create().texOffs(63, 33)
+                .addBox(-2.8F, -12.0F, 2.2F, 5.6F, 0.8F, 3.2F), PartPose.ZERO);
+        pack.addOrReplaceChild("left_frame_rail", CubeListBuilder.create().texOffs(23, 61)
+                .addBox(-5.5F, -10.6F, 1.8F, 0.7F, 8.2F, 2.8F), PartPose.ZERO);
+        pack.addOrReplaceChild("right_frame_rail", CubeListBuilder.create().texOffs(124, 61)
+                .addBox(4.8F, -10.6F, 1.8F, 0.7F, 8.2F, 2.8F), PartPose.ZERO);
+        // A raised service panel and inset spine make the central assembly read as
+        // a compact power unit instead of one broad flat plate.
+        pack.addOrReplaceChild("power_housing", CubeListBuilder.create().texOffs(64, 76)
+                .addBox(-2.0F, -8.9F, 4.0F, 4.0F, 5.7F, 0.8F), PartPose.ZERO);
+        pack.addOrReplaceChild("power_spine", CubeListBuilder.create().texOffs(64, 76)
+                .addBox(-0.55F, -8.4F, 4.7F, 1.1F, 4.7F, 0.35F), PartPose.ZERO);
         pack.addOrReplaceChild("left_bracket", CubeListBuilder.create().texOffs(23, 61)
                 .addBox(-5.4F, -2.6F, 1.8F, 1.1F, 3.2F, 2.8F), PartPose.ZERO);
         pack.addOrReplaceChild("right_bracket", CubeListBuilder.create().texOffs(124, 61)
@@ -41,6 +55,16 @@ public final class JetpackBackModel {
                 .addBox(-4.8F, -0.3F, 1.2F, 2.5F, 3.0F, 3.2F), PartPose.ZERO);
         pack.addOrReplaceChild("right_thruster", CubeListBuilder.create().texOffs(97, 132)
                 .addBox(2.3F, -0.3F, 1.2F, 2.5F, 3.0F, 3.2F), PartPose.ZERO);
+        // Layered nozzle collars and tapered-looking outlet lips add depth to the
+        // twin propulsors without changing their established location on the back.
+        pack.addOrReplaceChild("left_nozzle_collar", CubeListBuilder.create().texOffs(35, 132)
+                .addBox(-5.0F, 2.1F, 1.0F, 2.9F, 0.8F, 3.7F), PartPose.ZERO);
+        pack.addOrReplaceChild("right_nozzle_collar", CubeListBuilder.create().texOffs(97, 132)
+                .addBox(2.1F, 2.1F, 1.0F, 2.9F, 0.8F, 3.7F), PartPose.ZERO);
+        pack.addOrReplaceChild("left_exhaust", CubeListBuilder.create().texOffs(35, 132)
+                .addBox(-4.6F, 2.8F, 1.55F, 2.1F, 1.2F, 2.6F), PartPose.ZERO);
+        pack.addOrReplaceChild("right_exhaust", CubeListBuilder.create().texOffs(97, 132)
+                .addBox(2.5F, 2.8F, 1.55F, 2.1F, 1.2F, 2.6F), PartPose.ZERO);
         return LayerDefinition.create(mesh, 150, 170);
     }
 

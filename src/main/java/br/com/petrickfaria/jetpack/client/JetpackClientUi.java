@@ -124,7 +124,10 @@ public final class JetpackClientUi {
         int x = event.getWindow().getGuiScaledWidth() - 126;
         int y = 10;
         var pose = event.getPoseStack();
-        drawOutlinedText(mc, pose, "Jetpack:", x, y);
+        String title = "Jetpack";
+        int titleX = x + (96 - mc.font.width(title)) / 2;
+        drawOutlinedText(mc, pose, title, titleX, y);
+        boolean active = JetpackClientState.getFlight(mc.player.getId()).active();
         int barY = y + 12;
         GuiComponent.fill(pose, x - 1, barY - 1, x + 97, barY + 11, 0xFF15191D);
         GuiComponent.fill(pose, x, barY, x + 96, barY + 10, 0xFF9AA1A3);
@@ -132,23 +135,27 @@ public final class JetpackClientUi {
         GuiComponent.fill(pose, x + 2, barY + 2, x + 94, barY + 8, 0xFF681719);
         int fill = Math.round(92 * fraction);
         if (fill > 0) {
-            GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 8, 0xFFCF2929);
-            GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 3, 0xFFFF7A70);
-            GuiComponent.fill(pose, x + 2, barY + 7, x + 2 + fill, barY + 8, 0xFF9E1C21);
+            GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 8,
+                    active ? 0xFFF0443F : 0xFFCF2929);
+            GuiComponent.fill(pose, x + 2, barY + 2, x + 2 + fill, barY + 3,
+                    active ? 0xFFFFB0A3 : 0xFFFF7A70);
+            GuiComponent.fill(pose, x + 2, barY + 7, x + 2 + fill, barY + 8,
+                    active ? 0xFFC52B32 : 0xFF9E1C21);
         }
         for (int tick = 1; tick < 10; tick++) {
             int tickX = x + 2 + tick * 9;
-            if (tickX < x + 2 + fill) GuiComponent.fill(pose, tickX, barY + 3, tickX + 1, barY + 7, 0xFF762020);
+            if (tickX < x + 2 + fill) GuiComponent.fill(pose, tickX, barY + 3, tickX + 1, barY + 7,
+                    active ? 0xFF9E2828 : 0xFF762020);
         }
         drawOutlinedText(mc, pose, Math.round(fraction * 100) + "%", x + 101, barY + 1);
     }
 
     private static void drawOutlinedText(Minecraft mc, com.mojang.blaze3d.vertex.PoseStack pose,
                                          String text, int x, int y) {
-        mc.font.draw(pose, text, x - 1, y, 0xFF777777);
-        mc.font.draw(pose, text, x + 1, y, 0xFF777777);
-        mc.font.draw(pose, text, x, y - 1, 0xFF777777);
-        mc.font.draw(pose, text, x, y + 1, 0xFF777777);
+        mc.font.draw(pose, text, x - 1, y, 0xFF000000);
+        mc.font.draw(pose, text, x + 1, y, 0xFF000000);
+        mc.font.draw(pose, text, x, y - 1, 0xFF000000);
+        mc.font.draw(pose, text, x, y + 1, 0xFF000000);
         mc.font.draw(pose, text, x, y, 0xFFFFFFFF);
     }
 

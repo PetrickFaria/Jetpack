@@ -27,6 +27,7 @@ public final class JetpackFueling {
     private static final String BURN_VALUE = "JetpackBurnEnergy";
     private static final String BURN_FRACTION = "JetpackBurnFraction";
     private static final double FE_PER_BURN_TICK = JetpackItem.COAL_ENERGY / 1600.0D;
+    private static final int REFUEL_THRESHOLD = JetpackItem.CAPACITY * 95 / 100;
     // 1600 furnace burn ticks per coal are processed across 10 game ticks.
     // Twenty coals charge 6000 FE in 200 ticks (10 seconds at 20 TPS).
     static final int BURN_TICKS_PER_GAME_TICK = 160;
@@ -40,6 +41,11 @@ public final class JetpackFueling {
         if (fuelEnergy <= 0.0D || totalBurnTicks <= 0 || burnTicksLeft <= 0) return 0.0D;
         int consumedBurnTicks = Math.min(BURN_TICKS_PER_GAME_TICK, burnTicksLeft);
         return fuelEnergy * consumedBurnTicks / totalBurnTicks;
+    }
+
+    /** A fresh coal is only started at or below 95%; a running coal may finish its burn. */
+    public static boolean mayConsumeNextFuel(int energy) {
+        return energy <= REFUEL_THRESHOLD;
     }
 
     public static boolean isFuel(ItemStack stack) {
@@ -134,9 +140,14 @@ public final class JetpackFueling {
         int total = tag.getInt(BURN_TOTAL);
         double budget = tag.getDouble(BURN_VALUE);
         if (left <= 0) {
+            // Keep a stack of fuel in the jetpack's slot storage while the pack is
+            // charged. One item is moved into the burn state only when the charge
+            // has fallen to the 95% refill point.
+            if (!mayConsumeNextFuel(JetpackItem.energy(host))) return;
             ItemStack fuel = getFuel(host);
             if (!isFuel(fuel)) return;
             int burnTicks = ForgeHooks.getBurnTime(fuel, RecipeType.SMELTING);
+            if (burnTicks <= 0) return;
             fuel.shrink(1);
             if (fuel.isEmpty()) tag.remove(FUEL_TAG);
             else tag.put(FUEL_TAG, fuel.save(new CompoundTag()));

@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 6108)
+Total output lines: 470
+
 package br.com.petrickfaria.jetpack.player;
 
 import br.com.petrickfaria.jetpack.item.JetpackItem;
@@ -37,6 +40,7 @@ public final class JetpackFlight {
     // ascent displacement converges to input / (1 - 0.6).
     private static final double CREATIVE_VERTICAL_INPUT_MULTIPLIER = 3.0D;
     private static final double CREATIVE_VERTICAL_RETAINED_SPEED = 0.6D;
+    private static final double TERRAIN_CORRECTION_ACCELERATION = 0.06D;
     private static final float CREATIVE_FLY_SPEED = 0.05F;
     private static final DustParticleOptions RED_THRUST =
             new DustParticleOptions(new Vector3f(0.95F, 0.025F, 0.015F), 0.8F);
@@ -170,9 +174,23 @@ public final class JetpackFlight {
             return;
         }
         double ceiling = altitudeCeiling(surface, equipped.item.maximumHeight());
-        if (hadCeiling && ceiling < previousCeiling - 1.0E-4D && player.getY() > ceiling)
+        boolean wasTerrainCorrection = state.getBoolean("terrainCorrection");
+        if (hadCeiling && ceiling < previousCeiling - 1.0E-4D && player.getY() > ceiling) {
             state.putBoolean("terrainCorrection", true);
-        if (player.getY() <= ceiling) state.putBoolean("terrainCorrection", false);
+            if (!wasTerrainCorrection)
+                state.putDouble("terrainCorrectionVelocity", Math.min(0.0D, player.getDeltaMovement().y));
+        }
+        if (player.getY() <= ceiling) {
+            state.putBoolean("terrainCorrection", false);
+            state.putDouble("terrainCorrectionVelocity", 0.0D);
+            // The last eased step lands on the new ceiling. Clear its residual
+            // downward velocity so the next travel tick does not dip below it.
+            if (wasTerrainCorrection) {
+                Vec3 atCeilingMotion = player.getDeltaMovement();
+                if (atCeilingMotion.y < 0.0D)
+                    player.setDeltaMovement(atCeilingMotion.x, 0.0D, atCeilingMotion.z);
+            }
+        }
         state.putDouble("ceiling", ceiling);
         double synced = state.getDouble("syncedCeiling");
         if (Math.abs(ceiling - synced) >= 1.0E-3D && player instanceof ServerPlayer serverPlayer) {
@@ -184,8 +202,18 @@ public final class JetpackFlight {
         double ascentSpeed = state.getDouble("ascentSpeed");
         if (ascentSpeed <= 0.0D)
             ascentSpeed = creativeSteadyAscentSpeed(player.getAbilities().getFlyingSpeed());
-        Vec3 constrained = constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(),
-                player.getY(), ceiling, ascentSpeed);
+        Vec3 constrained;
+        if (state.getBoolean("terrainCorrection") && player.getY() > ceiling) {
+            double remainingHeight = player.getY() - ceiling;
+            double correctionVelocity = smoothTerrainCorrectionVelocity(
+                    state.getDouble("terrainCorrectionVelocity"), ascentSpeed,
+                    remainingHeight, TERRAIN_CORRECTION_ACCELERATION);
+            state.putDouble("terrainCorrectionVelocity", correctionVelocity);
+            constrained = new Vec3(motion.x, correctionVelocity, motion.z);
+        } else {
+            constrained = constrainFlightMotion(motion, state.getBoolean("down"), player.isOnGround(),
+                    player.getY(), ceiling, ascentSpeed);
+        }
         if (!constrained.equals(motion)) player.setDeltaMovement(constrained);
         enforceCeilingPosition(player, ceiling);
         if (player instanceof ServerPlayer serverPlayer) {
@@ -200,16 +228,7 @@ public final class JetpackFlight {
             return;
         }
         JetpackEquipment.save(player, pack);
-        if (player instanceof ServerPlayer serverPlayer && serverPlayer.tickCount % 2 == 0)
-            emitThrusterParticles(serverPlayer);
-        player.fallDistance = 0;
-    }
-
-    /** Slow, energy-backed descent while the main flight toggle is off. */
-    private static void tickControlledDescent(Player player, net.minecraft.nbt.CompoundTag state) {
-        if (!state.getBoolean("down") || player.isOnGround()) return;
-        var pack = JetpackEquipment.get(player);
-        if (!(pack.getItem() instanceof JetpackItem) || JetpackItem.energy(pack) <= 0) return;
+        if (player instanceof ServerPlayer serverPlayer && serverPlayer.tickCount % 2 =…108 tokens truncated…tpackItem) || JetpackItem.energy(pack) <= 0) return;
         Vec3 motion = player.getDeltaMovement();
         Vec3 adjusted = controlledDescentMotion(motion, true, false,
                 state.getFloat("strafe"), state.getFloat("forward"), player.getYRot());
@@ -227,6 +246,15 @@ public final class JetpackFlight {
     public static double creativeSteadyAscentSpeed(double flyingSpeed) {
         double verticalInput = flyingSpeed * CREATIVE_VERTICAL_INPUT_MULTIPLIER;
         return verticalInput / (1.0D - CREATIVE_VERTICAL_RETAINED_SPEED);
+    }
+
+    /** Ease only terrain-drop correction toward Creative's steady ascent speed, without changing its target. */
+    public static double smoothTerrainCorrectionVelocity(double currentVelocity, double ascentSpeed,
+                                                          double remainingHeight, double acceleration) {
+        if (remainingHeight <= 0.0D || ascentSpeed <= 0.0D || acceleration <= 0.0D) return 0.0D;
+        double target = -Math.min(ascentSpeed, remainingHeight);
+        if (currentVelocity > target) return Math.max(target, currentVelocity - acceleration);
+        return Math.min(target, currentVelocity + acceleration);
     }
 
     public static Vec3 constrainFlightMotion(Vec3 motion, boolean down, boolean onGround,

@@ -32,6 +32,35 @@ class JetpackFuelingTest {
     }
 
     @Test
+    void queuedCoalOnlyStartsWhenChargeHasFallenToNinetyFivePercent() {
+        assertTrue(JetpackFueling.mayConsumeNextFuel(5700));
+        assertTrue(JetpackFueling.mayConsumeNextFuel(5699));
+        assertFalse(JetpackFueling.mayConsumeNextFuel(5701));
+        assertFalse(JetpackFueling.mayConsumeNextFuel(JetpackItem.CAPACITY));
+    }
+
+    @Test
+    void aStackOfSixtyFourConsumesTwentyToFillAndLeavesFortyFourForTheNextRefill() {
+        int charge = 0;
+        int fuelInSlot = 64;
+        while (charge < JetpackItem.CAPACITY) {
+            assertTrue(JetpackFueling.mayConsumeNextFuel(charge));
+            fuelInSlot--;
+            charge = Math.min(JetpackItem.CAPACITY, charge + JetpackItem.COAL_ENERGY);
+        }
+        assertEquals(6000, charge);
+        assertEquals(44, fuelInSlot);
+        assertFalse(JetpackFueling.mayConsumeNextFuel(charge));
+
+        charge -= JetpackItem.COAL_ENERGY;
+        assertTrue(JetpackFueling.mayConsumeNextFuel(charge));
+        fuelInSlot--;
+        charge = Math.min(JetpackItem.CAPACITY, charge + JetpackItem.COAL_ENERGY);
+        assertEquals(6000, charge);
+        assertEquals(43, fuelInSlot);
+    }
+
+    @Test
     void otherFuelsScaleWithTheirBurnDuration() {
         assertEquals(150.0D, JetpackFueling.energyForBurnTicks(800), 0.000001D);
         assertEquals(18.75D, JetpackFueling.energyForBurnTicks(100), 0.000001D);
