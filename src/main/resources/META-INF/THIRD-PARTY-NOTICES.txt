@@ -1,7 +1,7 @@
 Jetpack turbine audio: assets/jetpack/sounds/jetpack_turbine.ogg
 Source: SimplyJetpacks2-1.19.2-2.9.1.1.jar supplied by the user.
 Upstream: https://github.com/Tomson124/SimplyJetpacks2
-Audio used unchanged. License and attribution follow:
+Audio converted from stereo to mono for positional playback; timbre retained. License and attribution follow:
 
 The MIT License (MIT)
 
