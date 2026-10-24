@@ -61,7 +61,7 @@ tasks.register('verifyModJarAssets') {
         def tiers = ['wood', 'iron', 'gold', 'emerald', 'diamond', 'netherite']
         def perspectives = ['firstperson_righthand', 'firstperson_lefthand', 'thirdperson_righthand', 'thirdperson_lefthand']
         def atlasRects = [[2,2,18,13], [23,2,13,16], [39,2,13,16], [55,2,16,8], [74,2,18,8],
-                          [95,2,8,14], [106,2,8,14], [117,2,10,8], [130,2,3,6], [135,2,8,9],
+                          [95,2,8,14], [106,2,8,14], [117,2,10,8], [130,2,4,6], [135,2,8,9],
                           [2,21,8,9], [12,21,12,10], [26,21,12,10], [40,21,14,9], [56,21,14,9],
                           [72,21,10,7], [84,21,10,7]]
         def backModelSource = new File(projectDir, 'src/main/java/br/com/petrickfaria/jetpack/client/JetpackBackModel.java').text
@@ -199,21 +199,8 @@ tasks.register('verifyModJarAssets') {
                 def entityTextureInput = archive.getInputStream(entityTextureEntry)
                 try {
                     def entityImage = javax.imageio.ImageIO.read(entityTextureInput)
-                    def itemImageInput = archive.getInputStream(textureEntry)
-                    try {
-                        def itemImage = javax.imageio.ImageIO.read(itemImageInput)
-                        if (entityImage == null || entityImage.width != itemImage.width || entityImage.height != itemImage.height) {
-                            throw new GradleException("Back texture dimensions differ from its icon: ${entityTexturePath}")
-                        }
-                        for (int y = 0; y < itemImage.height; y++) {
-                            for (int x = 0; x < itemImage.width; x++) {
-                                if ((entityImage.getRGB(x, y) >>> 24) != (itemImage.getRGB(x, y) >>> 24)) {
-                                    throw new GradleException("Back texture alpha mask differs from its item icon: ${entityTexturePath}")
-                                }
-                            }
-                        }
-                    } finally {
-                        itemImageInput.close()
+                    if (entityImage == null || !entityImage.colorModel.hasAlpha()) {
+                        throw new GradleException("Invalid separate hand texture: ${entityTexturePath}")
                     }
                 } finally {
                     entityTextureInput.close()

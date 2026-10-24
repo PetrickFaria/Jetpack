@@ -32,9 +32,9 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
 
         // Centered title plaque with a clean inset and small material-colored end caps.
         fill(pose, x + 5, y + 5, x + imageWidth - 5, y + 35, palette.header());
-        fill(pose, x + 22, y + 5, x + 154, y + 34, palette.accentDark());
-        fill(pose, x + 23, y + 6, x + 153, y + 33, palette.rim());
-        fill(pose, x + 25, y + 8, x + 151, y + 32, palette.header());
+        fill(pose, x + 16, y + 5, x + 160, y + 34, palette.accentDark());
+        fill(pose, x + 17, y + 6, x + 159, y + 33, palette.rim());
+        fill(pose, x + 19, y + 8, x + 157, y + 32, palette.header());
         fill(pose, x + 32, y + 30, x + 144, y + 31, palette.highlight());
         fill(pose, x + 5, y + 35, x + imageWidth - 5, y + 36, palette.accent());
         fill(pose, x + 7, y + 7, x + 10, y + 10, palette.highlight());
@@ -111,6 +111,8 @@ public final class JetpackFuelScreen extends AbstractContainerScreen<JetpackFuel
     }
 
     private void drawSlotFrame(PoseStack pose, int x, int y, Palette palette) {
+        x -= 1;
+        y -= 1;
         fill(pose, x, y, x + 18, y + 18, palette.accentDark());
         fill(pose, x + 1, y + 1, x + 17, y + 17, palette.rim());
         fill(pose, x + 2, y + 2, x + 16, y + 16, palette.slotFace());
