@@ -103,7 +103,7 @@ public final class JetpackClientSounds {
     }
 
     private static final class TurbineSound extends AbstractTickableSoundInstance {
-        private static final float TARGET_VOLUME = 0.38F;
+        private static final float TARGET_VOLUME = 1.0F; // Engine gain cap; OGG has 1.9x gain: 1.9 / 0.38 = 5x.
         private static final float FADE_STEP = TARGET_VOLUME / 6.0F;
         private final Entity entity;
         private boolean fadingOut;
